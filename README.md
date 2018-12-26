@@ -2,7 +2,6 @@
 # bchroot
 
 ## What is bchroot?
-
 bchroot (pronounced beach-root) is a variant of the chroot program.
 
 ## Why not just use chroot?
