@@ -25,7 +25,9 @@ exit(1);\
 #define PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 #define RBIND(src) {\
 if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
-        FATAL("could not mount %s to %s%s", src, get_current_dir_name(), src); \
+        if (errno != ENOENT){ \
+                FATAL("could not mount %s to %s%s", src, get_current_dir_name(), src); \
+        } \
 }
 
 int printf_file(char *file, char *format, ...){
@@ -96,8 +98,15 @@ void bchroot(char* rootfs, char* cmd[]) {
         //
         // mount stuff
         //
+
         if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
-            FATAL("could not mount")
+
+            // ignore errno as it happens inside a chroot
+            if (errno != EINVAL){
+                FATAL("could not change propagation of /");
+            } else {
+                errno = 0;
+            }
         RBIND("/dev");
         RBIND("/home");
         RBIND("/proc");
