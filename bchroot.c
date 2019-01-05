@@ -190,24 +190,22 @@ int parse_subid(const char *file, char **user, char **from, char **to){
 
 int main(int argc, char* argv[]) {
 
-        char *from = NULL;
-        char *to = NULL;
-        char *user = NULL;
+
         pid_t child;
         pid_t childchilds[2];
         int status;
 
-        parse_subid("/etc/subuid", &user, &from, &to);
-        //printf("got it %s %s %s\n", user, from, to);
+        char *uid_from = NULL;
+        char *uid_to = NULL;
+        char *uid_str = NULL;
 
-        //from = NULL;
-        //to = NULL;
-        //user = NULL;
-        //parse_subid("/etc/subgid", &user, &from, &to);
+        char *gid_from = NULL;
+        char *gid_to = NULL;
+        char *gid_str = NULL;
+
+        parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
+        parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
         //printf("got it %s %s %s\n", user, from, to);
-        //free(from);
-        //free(to);
-        //free(user);
 
         char *pid_str;
         if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
@@ -224,13 +222,18 @@ int main(int argc, char* argv[]) {
 
                 childchilds[0] = fork();
                 if (!childchilds[0]){
-                        execlp("newuidmap", "newuidmap", pid_str, "0", "1000", "1", "1", from, to, (char*)NULL);
+                        fprintf(stderr, "xxx %s\n", uid_str);
+                        execlp("newuidmap", "newuidmap",
+                                pid_str, "0", uid_str, "1",
+                                "1", uid_from, uid_to, NULL);
                         if (errno == ENOENT) exit(127);
                         FATAL("execlp");
                 }
                 childchilds[1] = fork();
                 if (!childchilds[1]){
-                        execlp("newgidmap", "newgidmap", pid_str, "0", "1000", "1", "1", from, to, (char*)NULL);
+                        execlp("newgidmap", "newgidmap",
+                                pid_str, "0", gid_str, "1",
+                                "1", gid_from, gid_to, NULL);
                         if (errno == ENOENT) exit(127);
                         FATAL("execlp");
                 }
@@ -261,11 +264,12 @@ int main(int argc, char* argv[]) {
                 FATAL("child exited with %d", status);
         }
 
-
-
-        free(from);
-        free(to);
-        free(user);
+        free(uid_from);
+        free(uid_to);
+        free(uid_str);
+        free(gid_from);
+        free(gid_to);
+        free(gid_str);
 
         execlp("id", "id", NULL);
 
