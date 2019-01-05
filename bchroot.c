@@ -3,14 +3,20 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <pwd.h>
 #include <sched.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <stdarg.h>
+#include <sys/wait.h>
+
+
+
 
 #define FATAL(...) {\
 fprintf(stderr, "%s", "bchroot: ");\
@@ -144,7 +150,134 @@ void bchroot(char* rootfs, char* cmd[]) {
                 FATAL("could not exec %s in %s", cmd[0], rootfs);
 }
 
+int parse_subid(const char *file, char **user, char **from, char **to){
+        FILE *fd;
+        struct passwd *pw;
+        uid_t uid;
+        char *uid_str;
+        size_t read, user_size = 0, from_size = 0, to_size = 0;
+
+        // try to open file
+	if (! (fd = fopen(file, "r"))){
+                errno = 0;
+                return 0;
+        }
+
+        // get username and uid
+        uid = geteuid();
+        if (asprintf(&uid_str, "%d", uid) == -1) FATAL("asprintf")
+        pw = getpwuid(uid);
+        if (!pw)
+                FATAL("could not find user")
+
+        // parse it
+        for (;;){
+                if ((read = getdelim(user, &user_size, ':', fd)) == -1) break;
+                (*user)[read-1] = 0;
+                if ((read = getdelim(from, &from_size, ':', fd)) == -1) break;
+                (*from)[read-1] = 0;
+                if ((read = getdelim(to, &to_size, '\n', fd)) == -1) break;
+                (*to)[read-1] = 0;
+
+                if (0 == strcmp(pw->pw_name, *user) || 0 == strcmp(uid_str, *user)){
+                        free(uid_str);
+                        return 1;
+                }
+        }
+        free(uid_str);
+        return 0;
+}
+
 int main(int argc, char* argv[]) {
+
+        char *from = NULL;
+        char *to = NULL;
+        char *user = NULL;
+        pid_t child;
+        pid_t childchilds[2];
+        int status;
+
+        parse_subid("/etc/subuid", &user, &from, &to);
+        //printf("got it %s %s %s\n", user, from, to);
+
+        //from = NULL;
+        //to = NULL;
+        //user = NULL;
+        //parse_subid("/etc/subgid", &user, &from, &to);
+        //printf("got it %s %s %s\n", user, from, to);
+        //free(from);
+        //free(to);
+        //free(user);
+
+        char *pid_str;
+        if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
+
+        int sig;
+        sigset_t sigset;
+        sigemptyset(&sigset);
+        sigaddset(&sigset, SIGUSR1);
+        sigprocmask(SIG_BLOCK, &sigset, NULL);
+
+        if (-1 == (child = fork())) FATAL("fork")
+        if (!child){
+                sigwait(&sigset, &sig);
+
+                childchilds[0] = fork();
+                if (!childchilds[0]){
+                        execlp("newuidmap", "newuidmap", pid_str, "0", "1000", "1", "1", from, to, (char*)NULL);
+                        if (errno == ENOENT) exit(127);
+                        FATAL("execlp");
+                }
+                childchilds[1] = fork();
+                if (!childchilds[1]){
+                        execlp("newgidmap", "newgidmap", pid_str, "0", "1000", "1", "1", from, to, (char*)NULL);
+                        if (errno == ENOENT) exit(127);
+                        FATAL("execlp");
+                }
+                for (int i = 0; i < 2; i++){
+                    if (childchilds[i] == -1) FATAL("fork")
+                    if (waitpid(childchilds[i], &status, 0) == -1) FATAL("waitpid")
+                    if (!WIFEXITED(status)) FATAL("child exited abnormally");
+                    if (status=WEXITSTATUS(status)){
+                        exit(status);
+                    }
+                }
+                exit(0);
+               
+        }
+
+        if (-1 == unshare(CLONE_NEWNS | CLONE_NEWUSER)){
+                        FATAL("could not unshare");
+        }
+
+        kill(child, SIGUSR1);
+        waitpid(child, &status, 0);
+        if (!WIFEXITED(status)) FATAL("child exited abnormally");
+        status = WEXITSTATUS(status);
+        if (status == 127){
+                FATAL("newuidmap/newgidmap not found")
+        }
+        if (status){
+                FATAL("child exited with %d", status);
+        }
+
+
+
+        free(from);
+        free(to);
+        free(user);
+
+        execlp("id", "id", NULL);
+
+
+
+
+
+
+       return 0;
+
+
+
         setbuf(stdout, NULL); // why, remove? I think it was for debugging
 
 	// basename destructs argv[0], that is ok because we overwrite it in
