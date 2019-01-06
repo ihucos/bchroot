@@ -201,6 +201,10 @@ int main(int argc, char* argv[]) {
         char *gid_to = NULL;
         char *gid_str = NULL;
 
+        char *xid_from;
+        char *xid_to;
+        char *xid_str;
+
         parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
         parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
         //printf("got it %s %s %s\n", uid_str, uid_from, uid_to);
@@ -218,22 +222,23 @@ int main(int argc, char* argv[]) {
         if (!child){
                 sigwait(&sigset, &sig);
 
-                childchilds[0] = fork();
-                if (!childchilds[0]){
-                        execlp("newuidmap", "newuidmap",
-                                pid_str, "0", uid_str, "1",
-                                "1", uid_from, uid_to, NULL);
-                        if (errno == ENOENT) exit(127);
-                        FATAL("execlp");
+                for (int i = 0; i < 2; i++){
+                        childchilds[i] = fork();
+                        if (!childchilds[i]){
+                                if (i){
+                                        execlp("newuidmap", "newuidmap",
+                                                pid_str, "0", uid_str, "1",
+                                                "1", uid_from, uid_to, NULL);
+                                } else {
+                                        execlp("newgidmap", "newgidmap",
+                                                pid_str, "0", gid_str, "1",
+                                                "1", gid_from, gid_to, NULL);
+                                }
+                                if (errno == ENOENT) exit(127);
+                                FATAL("execlp");
+                        }
                 }
-                childchilds[1] = fork();
-                if (!childchilds[1]){
-                        execlp("newgidmap", "newgidmap",
-                                pid_str, "0", gid_str, "1",
-                                "1", gid_from, gid_to, NULL);
-                        if (errno == ENOENT) exit(127);
-                        FATAL("execlp");
-                }
+
                 for (int i = 0; i < 2; i++){
                     if (childchilds[i] == -1) FATAL("fork")
                     if (waitpid(childchilds[i], &status, 0) == -1) FATAL("waitpid")
