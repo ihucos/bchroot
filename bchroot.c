@@ -150,12 +150,12 @@ void bchroot(char* rootfs, char* cmd[]) {
                 FATAL("could not exec %s in %s", cmd[0], rootfs);
 }
 
-int parse_subid(const char *file, char **user, char **from, char **to){
+int parse_subid(const char *file, char **id_str, char **from, char **to){
         FILE *fd;
         struct passwd *pw;
         uid_t uid;
-        char *uid_str;
         size_t read, user_size = 0, from_size = 0, to_size = 0;
+        char *label;
 
         // try to open file
 	if (! (fd = fopen(file, "r"))){
@@ -165,26 +165,24 @@ int parse_subid(const char *file, char **user, char **from, char **to){
 
         // get username and uid
         uid = geteuid();
-        if (asprintf(&uid_str, "%d", uid) == -1) FATAL("asprintf")
+        if (asprintf(id_str, "%d", uid) == -1) FATAL("asprintf")
         pw = getpwuid(uid);
         if (!pw)
-                FATAL("could not find user")
+                FATAL("could not find uid/gid")
 
         // parse it
         for (;;){
-                if ((read = getdelim(user, &user_size, ':', fd)) == -1) break;
-                (*user)[read-1] = 0;
+                if ((read = getdelim(&label, &user_size, ':', fd)) == -1) break;
+                label[read-1] = 0;
                 if ((read = getdelim(from, &from_size, ':', fd)) == -1) break;
                 (*from)[read-1] = 0;
                 if ((read = getdelim(to, &to_size, '\n', fd)) == -1) break;
                 (*to)[read-1] = 0;
 
-                if (0 == strcmp(pw->pw_name, *user) || 0 == strcmp(uid_str, *user)){
-                        free(uid_str);
+                if (0 == strcmp(pw->pw_name, label) || 0 == strcmp(*id_str, label)){
                         return 1;
                 }
         }
-        free(uid_str);
         return 0;
 }
 
@@ -205,7 +203,7 @@ int main(int argc, char* argv[]) {
 
         parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
         parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
-        //printf("got it %s %s %s\n", user, from, to);
+        //printf("got it %s %s %s\n", uid_str, uid_from, uid_to);
 
         char *pid_str;
         if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
@@ -222,7 +220,6 @@ int main(int argc, char* argv[]) {
 
                 childchilds[0] = fork();
                 if (!childchilds[0]){
-                        fprintf(stderr, "xxx %s\n", uid_str);
                         execlp("newuidmap", "newuidmap",
                                 pid_str, "0", uid_str, "1",
                                 "1", uid_from, uid_to, NULL);
@@ -249,8 +246,8 @@ int main(int argc, char* argv[]) {
                
         }
 
-        if (-1 == unshare(CLONE_NEWNS | CLONE_NEWUSER)){
-                        FATAL("could not unshare");
+        if (-1 == unshare(CLONE_NEWUSER)){
+                        FATAL("could not unshare user namespace");
         }
 
         kill(child, SIGUSR1);
