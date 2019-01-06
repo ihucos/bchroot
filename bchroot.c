@@ -36,6 +36,14 @@ if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
         } \
 }
 
+
+enum {
+CHILD_NO_NEWUIDMAP = 0x01,
+CHILD_NO_NEWGIDMAP = 0x02,
+CHILD_FATAL = 0x04,
+};
+
+
 int printf_file(char *file, char *format, ...){
         FILE *fd;
 	if (! (fd = fopen(file, "w")))
@@ -164,7 +172,7 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
         }
 
         // get username and uid
-        uid = geteuid();
+        uid = getuid();
         if (asprintf(id_str, "%d", uid) == -1) FATAL("asprintf")
         pw = getpwuid(uid);
         if (!pw)
@@ -192,6 +200,7 @@ int main(int argc, char* argv[]) {
         pid_t child;
         pid_t childchilds[2];
         int status;
+        int child_exit = 0;
 
         char *uid_from = NULL;
         char *uid_to = NULL;
@@ -200,10 +209,6 @@ int main(int argc, char* argv[]) {
         char *gid_from = NULL;
         char *gid_to = NULL;
         char *gid_str = NULL;
-
-        char *xid_from;
-        char *xid_to;
-        char *xid_str;
 
         parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
         parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
@@ -242,12 +247,22 @@ int main(int argc, char* argv[]) {
                 for (int i = 0; i < 2; i++){
                     if (childchilds[i] == -1) FATAL("fork")
                     if (waitpid(childchilds[i], &status, 0) == -1) FATAL("waitpid")
-                    if (!WIFEXITED(status)) FATAL("child exited abnormally");
-                    if (status=WEXITSTATUS(status)){
-                        exit(status);
+                    if (!WIFEXITED(status)) {
+                        fprintf(stderr, "bchroot: child exited abnormally\n");
+                        exit(CHILD_FATAL);
+                    }
+                    status=WEXITSTATUS(status);
+                    child_exit = 0;
+                    if (status){
+                            if (status == 127){
+                                    child_exit |= i ? CHILD_NO_NEWUIDMAP : CHILD_NO_NEWGIDMAP;
+                            } else {
+                                    fprintf(stderr, "bchroot: newuidmap/newgidmap died with %d\n", status);
+                                    exit(CHILD_FATAL);
+                            }
                     }
                 }
-                exit(0);
+                exit(child_exit);
                
         }
 
@@ -259,11 +274,24 @@ int main(int argc, char* argv[]) {
         waitpid(child, &status, 0);
         if (!WIFEXITED(status)) FATAL("child exited abnormally");
         status = WEXITSTATUS(status);
-        if (status == 127){
-                FATAL("newuidmap/newgidmap not found")
+
+        if (status & CHILD_NO_NEWUIDMAP){
+                if (!printf_file("/proc/self/uid_map", "0 %u 1\n", getuid())){
+                        FATAL("could not open /proc/self/uid_map")
+                }
         }
-        if (status){
-                FATAL("child exited with %d", status);
+        if (status & CHILD_NO_NEWGIDMAP){
+                if (!printf_file("/proc/self/setgroups", "deny")){
+                        if (errno != ENOENT) 
+                                FATAL("could not open /proc/self/setgroups");
+                };
+                if (!printf_file("/proc/self/gid_map", "0 %u 1\n", getgid())){
+                        FATAL("could not open /proc/self/gid_map")
+                }
+        }
+        if (status & CHILD_FATAL){
+                // error message comes from child
+                exit(1);
         }
 
         free(uid_from);
