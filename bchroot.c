@@ -78,6 +78,8 @@ void whitelist_env(char *env_name){
 void pimped_chroot(char* rootfs) {
 
         char *origpwd;
+        char *token, *str;
+
         if (!(origpwd = get_current_dir_name()))
             FATAL("error calling get_current_dir_name")
 
@@ -87,7 +89,8 @@ void pimped_chroot(char* rootfs) {
         //
         // mount stuff
         //
-
+       if (-1 == unshare(CLONE_NEWNS))
+                FATAL("could not unshare");
         if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
 
             // ignore errno as it happens inside a chroot
@@ -112,7 +115,6 @@ void pimped_chroot(char* rootfs) {
                         FATAL("could not chdir")
         }
 
-        char *token, *str;
         if (str = getenv("BCHROOT_EXPORT")) {
                 str = strdup(str);
                 token = strtok(str, ":");
@@ -173,6 +175,7 @@ void setup_user_ns(){
         int status;
         pid_t child;
         pid_t childchilds[2];
+        int found_subuid, found_subgid;
 
         char *uid_from = NULL;
         char *uid_str = NULL;
@@ -182,8 +185,8 @@ void setup_user_ns(){
         char *gid_to = NULL;
         char *gid_str = NULL;
 
-        parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
-        parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
+        found_subuid = parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
+        found_subgid = parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
 
         char *pid_str;
         if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
@@ -204,10 +207,12 @@ void setup_user_ns(){
                                         execlp("newuidmap", "newuidmap",
                                                 pid_str, "0", uid_str, "1",
                                                 "1", uid_from, uid_to, NULL);
+                                       FATAL("exec");
                                 } else {
                                         execlp("newgidmap", "newgidmap",
                                                 pid_str, "0", gid_str, "1",
                                                 "1", gid_from, gid_to, NULL);
+                                       FATAL("exec");
                                 }
                                 if (errno == ENOENT) exit(127);
                                 FATAL("execlp");
@@ -280,30 +285,13 @@ int main(int argc, char* argv[]) {
 	char *binaryname = basename(argv[0]);
         char *rootfs;
 
+        argv[0] = binaryname;
+        if (NULL == (rootfs = realpath("/proc/self/exe", NULL)))
+            FATAL("could not call realpath(\"/proc/self/exe\")");
+        if (-1 == asprintf(&rootfs, "%s/rootfs", dirname(rootfs)))
+            FATAL("asprintf")
+
        setup_user_ns();
-       if (-1 == unshare(CLONE_NEWNS))
-                FATAL("could not unshare");
-
-        if (0 == strcmp(binaryname, "bchroot")){
-            if (argc <= 1){
-                fprintf(stderr, "usage: bchroot ROOTFS [CMD1 [CMD2 ...]]\n");
-                exit(EXIT_FAILURE);
-            } else if (argc <= 2){
-		rootfs = argv[1];
-		argv[0] = "/bin/bash";
-		argv[1] = NULL;
-	    } else {
-	    	argv++;
-                rootfs = *argv++;
-	    }
-        } else {
-	    argv[0] = binaryname;
-	    if (NULL == (rootfs = realpath("/proc/self/exe", NULL)))
-            	FATAL("could not call realpath(\"/proc/self/exe\")");
-            if (-1 == asprintf(&rootfs, "%s/rootfs", dirname(rootfs)))
-	    	FATAL("could not call asprintf (out of memory?)")
-        }
-
 	pimped_chroot(rootfs);
 
         if (-1 == execvp(argv[0], argv))
