@@ -75,32 +75,7 @@ void whitelist_env(char *env_name){
         }
 }
 
-void setup_namespace(){
-        uid_t uid = getuid();
-        gid_t gid = getgid();
-        if (uid == 0){
-                if (-1 == unshare(CLONE_NEWNS))
-                        FATAL("could not unshare");
-        } else {
-                if (-1 == unshare(CLONE_NEWNS | CLONE_NEWUSER))
-                        FATAL("could not unshare");
-
-                if (!printf_file("/proc/self/setgroups", "deny")){
-                        if (errno != ENOENT) 
-                                FATAL("could not open /proc/self/setgroups");
-                };
-                if (!printf_file("/proc/self/uid_map", "0 %u 1\n", uid)){
-                        FATAL("could not open /proc/self/uid_map")
-                }
-                if (!printf_file("/proc/self/gid_map", "0 %u 1\n", gid)){
-                        FATAL("could not open /proc/self/gid_map")
-                }
-        }
-}
-
 void bchroot(char* rootfs, char* cmd[]) {
-
-        setup_namespace();
 
         char *origpwd;
         if (!(origpwd = get_current_dir_name()))
@@ -301,9 +276,6 @@ void setup_user_ns(){
 }
 
 
-
-
-
 int main(int argc, char* argv[]) {
 
 	// basename destructs argv[0], that is ok because we overwrite it in
@@ -312,6 +284,8 @@ int main(int argc, char* argv[]) {
         char *rootfs;
 
        setup_user_ns();
+       if (-1 == unshare(CLONE_NEWNS))
+                FATAL("could not unshare");
 
         if (0 == strcmp(binaryname, "bchroot")){
             if (argc <= 1){
