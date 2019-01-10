@@ -163,7 +163,7 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
         struct passwd *pw;
         uid_t uid;
         size_t read, user_size = 0, from_size = 0, to_size = 0;
-        char *label;
+        char *label = NULL;
 
         // try to open file
 	if (! (fd = fopen(file, "r"))){
@@ -194,17 +194,17 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
         return 0;
 }
 
-int main(int argc, char* argv[]) {
 
-
+void setup_user_ns(){
+        int child_exit = 0;
+        int sig;
+        int status;
         pid_t child;
         pid_t childchilds[2];
-        int status;
-        int child_exit = 0;
 
         char *uid_from = NULL;
-        char *uid_to = NULL;
         char *uid_str = NULL;
+        char *uid_to = NULL;
 
         char *gid_from = NULL;
         char *gid_to = NULL;
@@ -212,12 +212,10 @@ int main(int argc, char* argv[]) {
 
         parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
         parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
-        //printf("got it %s %s %s\n", uid_str, uid_from, uid_to);
 
         char *pid_str;
         if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
 
-        int sig;
         sigset_t sigset;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGUSR1);
@@ -300,24 +298,20 @@ int main(int argc, char* argv[]) {
         free(gid_from);
         free(gid_to);
         free(gid_str);
-
-        execlp("id", "id", NULL);
-
+}
 
 
 
 
 
-       return 0;
-
-
-
-        setbuf(stdout, NULL); // why, remove? I think it was for debugging
+int main(int argc, char* argv[]) {
 
 	// basename destructs argv[0], that is ok because we overwrite it in
 	// every case
 	char *binaryname = basename(argv[0]);
         char *rootfs;
+
+       setup_user_ns();
 
         if (0 == strcmp(binaryname, "bchroot")){
             if (argc <= 1){
