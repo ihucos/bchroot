@@ -75,7 +75,7 @@ void whitelist_env(char *env_name){
         }
 }
 
-void bchroot(char* rootfs, char* cmd[]) {
+void pimped_chroot(char* rootfs) {
 
         char *origpwd;
         if (!(origpwd = get_current_dir_name()))
@@ -128,9 +128,6 @@ void bchroot(char* rootfs, char* cmd[]) {
 	putenv("PATH=" PATH);
         whitelist_env("PATH");
         whitelist_env(NULL);
-
-        if (-1 == execvp(cmd[0], cmd))
-                FATAL("could not exec %s in %s", cmd[0], rootfs);
 }
 
 int parse_subid(const char *file, char **id_str, char **from, char **to){
@@ -307,5 +304,8 @@ int main(int argc, char* argv[]) {
 	    	FATAL("could not call asprintf (out of memory?)")
         }
 
-	bchroot(rootfs, argv);
+	pimped_chroot(rootfs);
+
+        if (-1 == execvp(argv[0], argv))
+                FATAL("could not exec %s in %s", argv[0], rootfs);
 }
