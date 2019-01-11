@@ -202,39 +202,51 @@ void setup_user_ns(){
         if (!master_child){
                 sigwait(&sigset, &sig);
 
-                uid_child = fork();
-                if (-1 == uid_child) FATAL("fork");
-                if (0 == uid_child){
-                        execlp("newuidmap", "newuidmap",
-                                 pid_str, "0", uid_str, "1",
-                                 "1", uid_from, uid_to, NULL);
-                        if (errno == ENOENT) exit(127);
-                        FATAL("execlp");
+                if (found_subuid){
+                        uid_child = fork();
+                        if (-1 == uid_child) FATAL("fork");
+                        if (0 == uid_child){
+                                execlp("newuidmap", "newuidmap",
+                                         pid_str, "0", uid_str, "1",
+                                         "1", uid_from, uid_to, NULL);
+                                if (errno == ENOENT) exit(127);
+                                FATAL("execlp");
+                        }
                 }
 
-                gid_child = fork();
-                if (-1 == gid_child) FATAL("fork");
-                if (0 == gid_child){
-                        sleep(1);
-                        execlp("newgidmap", "newgidmap",
-                                        pid_str, "0", gid_str, "1",
-                                        "1", gid_from, gid_to, NULL);
-                        if (errno == ENOENT) exit(127);
-                        FATAL("execlp");
+                if (found_subgid){
+                        gid_child = fork();
+                        if (-1 == gid_child) FATAL("fork");
+                        if (0 == gid_child){
+                                sleep(1);
+                                execlp("newgidmap", "newgidmap",
+                                                pid_str, "0", gid_str, "1",
+                                                "1", gid_from, gid_to, NULL);
+                                if (errno == ENOENT) exit(127);
+                                FATAL("execlp");
+                        }
                 }
 
-                if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
-                switch (sinfo.si_status){
-                        case 0: break;
-                        case 127: child_exit |= CHILD_NO_NEWUIDMAP; break;
-                        default: child_exit |= CHILD_FATAL; break;
+                if (found_subuid){
+                        if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
+                        switch (sinfo.si_status){
+                                case 0: break;
+                                case 127: child_exit |= CHILD_NO_NEWUIDMAP; break;
+                                default: child_exit |= CHILD_FATAL; break;
+                        }
+                } else {
+                        child_exit |= CHILD_NO_NEWUIDMAP;
                 }
 
-                if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
-                switch (sinfo.si_status){
-                        case 0: break;
-                        case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
-                        default: child_exit |= CHILD_FATAL; break;
+                if (found_subgid){
+                        if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
+                        switch (sinfo.si_status){
+                                case 0: break;
+                                case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
+                                default: child_exit |= CHILD_FATAL; break;
+                        }
+                } else {
+                        child_exit |= CHILD_NO_NEWGIDMAP;
                 }
 
                 exit(child_exit);
