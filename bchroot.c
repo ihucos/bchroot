@@ -174,8 +174,8 @@ void setup_user_ns(){
         int sig;
         int status;
         pid_t child;
-        pid_t childchilds[2];
         int found_subuid, found_subgid;
+        siginfo_t sinfo;
 
         char *uid_from = NULL;
         char *uid_str = NULL;
@@ -200,43 +200,45 @@ void setup_user_ns(){
         if (!child){
                 sigwait(&sigset, &sig);
 
-                for (int i = 0; i < 2; i++){
-                        childchilds[i] = fork();
-                        if (!childchilds[i]){
-                                if (i){
-                                        execlp("newuidmap", "newuidmap",
-                                                pid_str, "0", uid_str, "1",
-                                                "1", uid_from, uid_to, NULL);
-                                       FATAL("exec");
-                                } else {
-                                        execlp("newgidmap", "newgidmap",
-                                                pid_str, "0", gid_str, "1",
-                                                "1", gid_from, gid_to, NULL);
-                                       FATAL("exec");
-                                }
-                                if (errno == ENOENT) exit(127);
-                                FATAL("execlp");
-                        }
+
+                child = fork();
+                if (-1 == child) FATAL("fork");
+                if (0 == child){
+                        execlp("newuidmap", "newuidmap",
+                                 pid_str, "0", uid_str, "1",
+                                 "1", uid_from, uid_to, NULL);
+                        if (errno == ENOENT) exit(127);
+                        FATAL("execlp");
                 }
 
-                for (int i = 0; i < 2; i++){
-                    if (childchilds[i] == -1) FATAL("fork")
-                    if (waitpid(childchilds[i], &status, 0) == -1) FATAL("waitpid")
-                    if (!WIFEXITED(status)) {
-                        fprintf(stderr, "bchroot: child exited abnormally\n");
-                        exit(CHILD_FATAL);
-                    }
-                    status=WEXITSTATUS(status);
-                    child_exit = 0;
-                    if (status){
-                            if (status == 127){
-                                    child_exit |= i ? CHILD_NO_NEWUIDMAP : CHILD_NO_NEWGIDMAP;
-                            } else {
-                                    fprintf(stderr, "bchroot: newuidmap/newgidmap died with %d\n", status);
-                                    exit(CHILD_FATAL);
-                            }
-                    }
+                child = fork();
+                if (-1 == child) FATAL("fork");
+                if (0 == child){
+                        sleep(1);
+                        execlp("newgidmap", "newgidmap",
+                                        pid_str, "0", gid_str, "1",
+                                        "1", gid_from, gid_to, NULL);
+                        if (errno == ENOENT) exit(127);
+                        FATAL("execlp");
                 }
+
+                // wait for last forked child - the one that spawn newgidmap
+                if (-1 == waitid(P_PID, child, &sinfo, WEXITED)) FATAL("waitid");
+                switch (sinfo.si_status){
+                        case 0: break;
+                        case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
+                        default: child_exit |= CHILD_FATAL; break;
+                }
+
+                // wait for the other one, that is newuidmap
+                if (-1 == waitid(P_ALL, 0, &sinfo, WEXITED)) FATAL("waitid");
+                switch (sinfo.si_status){
+                        case 0: break;
+                        case 127: child_exit |= CHILD_NO_NEWUIDMAP; break;
+                        default: child_exit |= CHILD_FATAL; break;
+                }
+
+
                 exit(child_exit);
                
         }
@@ -246,16 +248,14 @@ void setup_user_ns(){
         }
 
         kill(child, SIGUSR1);
-        waitpid(child, &status, 0);
-        if (!WIFEXITED(status)) FATAL("child exited abnormally");
-        status = WEXITSTATUS(status);
+        if (-1 == waitid(P_PID, child, &sinfo, WEXITED)) FATAL("waitid");
 
-        if (status & CHILD_NO_NEWUIDMAP){
+        if (sinfo.si_status & CHILD_NO_NEWUIDMAP){
                 if (!printf_file("/proc/self/uid_map", "0 %u 1\n", getuid())){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
-        if (status & CHILD_NO_NEWGIDMAP){
+        if (sinfo.si_status  & CHILD_NO_NEWGIDMAP){
                 if (!printf_file("/proc/self/setgroups", "deny")){
                         if (errno != ENOENT) 
                                 FATAL("could not open /proc/self/setgroups");
@@ -264,9 +264,9 @@ void setup_user_ns(){
                         FATAL("could not open /proc/self/gid_map")
                 }
         }
-        if (status & CHILD_FATAL){
+        if (sinfo.si_status & CHILD_FATAL){
                 // error message comes from child
-                exit(1);
+                FATAL("child died");
         }
 
         free(uid_from);
