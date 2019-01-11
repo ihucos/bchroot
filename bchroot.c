@@ -38,9 +38,9 @@ if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
 
 
 enum {
-CHILD_NO_NEWUIDMAP = 0x01,
-CHILD_NO_NEWGIDMAP = 0x02,
-CHILD_FATAL = 0x04,
+SETUP_NO_UID = 0x01,
+SETUP_NO_GID = 0x02,
+SETUP_ERROR = 0x04,
 };
 
 
@@ -218,7 +218,6 @@ void setup_user_ns(){
                         gid_child = fork();
                         if (-1 == gid_child) FATAL("fork");
                         if (0 == gid_child){
-                                sleep(1);
                                 execlp("newgidmap", "newgidmap",
                                                 pid_str, "0", gid_str, "1",
                                                 "1", gid_from, gid_to, NULL);
@@ -231,22 +230,22 @@ void setup_user_ns(){
                         if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
                         switch (sinfo.si_status){
                                 case 0: break;
-                                case 127: child_exit |= CHILD_NO_NEWUIDMAP; break;
-                                default: child_exit |= CHILD_FATAL; break;
+                                case 127: child_exit |= SETUP_NO_UID; break;
+                                default: child_exit |= SETUP_ERROR; break;
                         }
                 } else {
-                        child_exit |= CHILD_NO_NEWUIDMAP;
+                        child_exit |= SETUP_NO_UID;
                 }
 
                 if (found_subgid){
                         if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
                         switch (sinfo.si_status){
                                 case 0: break;
-                                case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
-                                default: child_exit |= CHILD_FATAL; break;
+                                case 127: child_exit |= SETUP_NO_GID; break;
+                                default: child_exit |= SETUP_ERROR; break;
                         }
                 } else {
-                        child_exit |= CHILD_NO_NEWGIDMAP;
+                        child_exit |= SETUP_NO_GID;
                 }
 
                 exit(child_exit);
@@ -260,12 +259,12 @@ void setup_user_ns(){
         kill(master_child, SIGUSR1);
         if (-1 == waitid(P_PID, master_child, &sinfo, WEXITED)) FATAL("waitid");
 
-        if (sinfo.si_status & CHILD_NO_NEWUIDMAP){
+        if (sinfo.si_status & SETUP_NO_UID){
                 if (!printf_file("/proc/self/uid_map", "0 %u 1\n", origuid)){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
-        if (sinfo.si_status  & CHILD_NO_NEWGIDMAP){
+        if (sinfo.si_status  & SETUP_NO_GID){
                 if (!printf_file("/proc/self/setgroups", "deny")){
                         if (errno != ENOENT) 
                                 FATAL("could not open /proc/self/setgroups");
@@ -274,16 +273,16 @@ void setup_user_ns(){
                         FATAL("could not open /proc/self/gid_map")
                 }
         }
-        if (sinfo.si_status & CHILD_FATAL){
+        if (sinfo.si_status & SETUP_ERROR){
                 FATAL("child died");
         }
 
-        free(uid_from);
-        free(uid_to);
-        free(uid_str);
-        free(gid_from);
-        free(gid_to);
-        free(gid_str);
+        if (uid_from) free(uid_from);
+        if (uid_to)   free(uid_to);
+        if (uid_str)  free(uid_str);
+        if (gid_from) free(gid_from);
+        if (gid_to)   free(gid_to);
+        if (gid_str)  free(gid_str);
 }
 
 
