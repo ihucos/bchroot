@@ -170,7 +170,7 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
 
 
 void setup_user_ns(){
-        int child_exit = 0;
+        int setup_report = 0;
         int sig;
         int status;
         pid_t master_child, uid_child, gid_child;
@@ -200,8 +200,11 @@ void setup_user_ns(){
 
         if (-1 == (master_child = fork())) FATAL("fork")
         if (!master_child){
+
+                // wait for parents signal after he unshares the user namespace
                 sigwait(&sigset, &sig);
 
+                // start a child to setup the uid namespace
                 if (found_subuid){
                         uid_child = fork();
                         if (-1 == uid_child) FATAL("fork");
@@ -214,6 +217,7 @@ void setup_user_ns(){
                         }
                 }
 
+                // start a child to setup the gid namespace
                 if (found_subgid){
                         gid_child = fork();
                         if (-1 == gid_child) FATAL("fork");
@@ -226,29 +230,32 @@ void setup_user_ns(){
                         }
                 }
 
+                // check childs status
                 if (found_subuid){
                         if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
                         switch (sinfo.si_status){
                                 case 0: break;
-                                case 127: child_exit |= SETUP_NO_UID; break;
-                                default: child_exit |= SETUP_ERROR; break;
+                                case 127: setup_report |= SETUP_NO_UID; break;
+                                default: setup_report |= SETUP_ERROR; break;
                         }
                 } else {
-                        child_exit |= SETUP_NO_UID;
+                        setup_report |= SETUP_NO_UID;
                 }
 
+                // check the other childs status
                 if (found_subgid){
                         if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
                         switch (sinfo.si_status){
                                 case 0: break;
-                                case 127: child_exit |= SETUP_NO_GID; break;
-                                default: child_exit |= SETUP_ERROR; break;
+                                case 127: setup_report |= SETUP_NO_GID; break;
+                                default: setup_report |= SETUP_ERROR; break;
                         }
                 } else {
-                        child_exit |= SETUP_NO_GID;
+                        setup_report |= SETUP_NO_GID;
                 }
 
-                exit(child_exit);
+                // return setup report to parent
+                exit(setup_report);
                
         }
 
