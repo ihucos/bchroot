@@ -173,9 +173,11 @@ void setup_user_ns(){
         int child_exit = 0;
         int sig;
         int status;
-        pid_t child;
+        pid_t master_child, uid_child, gid_child;
         int found_subuid, found_subgid;
         siginfo_t sinfo;
+        uid_t origuid = getuid();
+        gid_t origgid = getgid();
 
         char *uid_from = NULL;
         char *uid_str = NULL;
@@ -196,14 +198,13 @@ void setup_user_ns(){
         sigaddset(&sigset, SIGUSR1);
         sigprocmask(SIG_BLOCK, &sigset, NULL);
 
-        if (-1 == (child = fork())) FATAL("fork")
-        if (!child){
+        if (-1 == (master_child = fork())) FATAL("fork")
+        if (!master_child){
                 sigwait(&sigset, &sig);
 
-
-                child = fork();
-                if (-1 == child) FATAL("fork");
-                if (0 == child){
+                uid_child = fork();
+                if (-1 == uid_child) FATAL("fork");
+                if (0 == uid_child){
                         execlp("newuidmap", "newuidmap",
                                  pid_str, "0", uid_str, "1",
                                  "1", uid_from, uid_to, NULL);
@@ -211,9 +212,9 @@ void setup_user_ns(){
                         FATAL("execlp");
                 }
 
-                child = fork();
-                if (-1 == child) FATAL("fork");
-                if (0 == child){
+                gid_child = fork();
+                if (-1 == gid_child) FATAL("fork");
+                if (0 == gid_child){
                         sleep(1);
                         execlp("newgidmap", "newgidmap",
                                         pid_str, "0", gid_str, "1",
@@ -222,22 +223,19 @@ void setup_user_ns(){
                         FATAL("execlp");
                 }
 
-                // wait for last forked child - the one that spawn newgidmap
-                if (-1 == waitid(P_PID, child, &sinfo, WEXITED)) FATAL("waitid");
-                switch (sinfo.si_status){
-                        case 0: break;
-                        case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
-                        default: child_exit |= CHILD_FATAL; break;
-                }
-
-                // wait for the other one, that is newuidmap
-                if (-1 == waitid(P_ALL, 0, &sinfo, WEXITED)) FATAL("waitid");
+                if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
                 switch (sinfo.si_status){
                         case 0: break;
                         case 127: child_exit |= CHILD_NO_NEWUIDMAP; break;
                         default: child_exit |= CHILD_FATAL; break;
                 }
 
+                if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
+                switch (sinfo.si_status){
+                        case 0: break;
+                        case 127: child_exit |= CHILD_NO_NEWGIDMAP; break;
+                        default: child_exit |= CHILD_FATAL; break;
+                }
 
                 exit(child_exit);
                
@@ -247,11 +245,11 @@ void setup_user_ns(){
                         FATAL("could not unshare user namespace");
         }
 
-        kill(child, SIGUSR1);
-        if (-1 == waitid(P_PID, child, &sinfo, WEXITED)) FATAL("waitid");
+        kill(master_child, SIGUSR1);
+        if (-1 == waitid(P_PID, master_child, &sinfo, WEXITED)) FATAL("waitid");
 
         if (sinfo.si_status & CHILD_NO_NEWUIDMAP){
-                if (!printf_file("/proc/self/uid_map", "0 %u 1\n", getuid())){
+                if (!printf_file("/proc/self/uid_map", "0 %u 1\n", origuid)){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
@@ -260,12 +258,11 @@ void setup_user_ns(){
                         if (errno != ENOENT) 
                                 FATAL("could not open /proc/self/setgroups");
                 };
-                if (!printf_file("/proc/self/gid_map", "0 %u 1\n", getgid())){
+                if (!printf_file("/proc/self/gid_map", "0 %u 1\n", origgid)){
                         FATAL("could not open /proc/self/gid_map")
                 }
         }
         if (sinfo.si_status & CHILD_FATAL){
-                // error message comes from child
                 FATAL("child died");
         }
 
