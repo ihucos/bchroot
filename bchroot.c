@@ -44,39 +44,6 @@ SETUP_NO_GID = 0x02,
 SETUP_ERROR = 0x04,
 };
 
-typedef struct {
-        uid_t uid;
-        gid_t gid;
-        char *uid_str;
-        char *gid_str;
-        char *pid_str;
-        char *username;
-        char *groupname;
-
-} brt_glob_t;
-
-brt_glob_t brt_glob;
-
-void brt_init_global(){
-        brt_glob.uid = getuid();
-        brt_glob.gid = getgid();
-        if (asprintf(&brt_glob.uid_str, "%d", brt_glob.uid) == -1) FATAL("asprintf");
-        if (asprintf(&brt_glob.gid_str, "%d", brt_glob.gid) == -1) FATAL("asprintf");
-        if (asprintf(&brt_glob.pid_str, "%d", getpid()) == -1) FATAL("asprintf");
-
-        struct passwd *pw = getpwuid(brt_glob.uid);
-        brt_glob.username = pw ? pw->pw_name : NULL;
-
-        struct group *grp = getgrgid(brt_glob.gid);
-        brt_glob.groupname = grp ? grp->gr_name : NULL;
-}
-
-void brt_free_global(){
-       free(brt_glob.uid_str);
-       free(brt_glob.gid_str);
-       free(brt_glob.pid_str);
-}
-
 
 int brt_printf_file(char *file, char *format, ...){
         FILE *fd;
@@ -227,6 +194,27 @@ void brt_setup_user_ns(){
         pid_t master_child, uid_child, gid_child;
         siginfo_t sinfo;
 
+        uid_t uid;
+        gid_t gid;
+        char *uid_str;
+        char *gid_str;
+        char *pid_str;
+        char *username;
+        char *groupname;
+
+        uid = getuid();
+        gid = getgid();
+        if (asprintf(&uid_str, "%d", uid) == -1) FATAL("asprintf");
+        if (asprintf(&gid_str, "%d", gid) == -1) FATAL("asprintf");
+        if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
+
+        struct passwd *pw = getpwuid(uid);
+        username = pw ? pw->pw_name : NULL;
+
+        struct group *grp = getgrgid(gid);
+        groupname = grp ? grp->gr_name : NULL;
+
+
         sigset_t sigset;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGUSR1);
@@ -241,22 +229,22 @@ void brt_setup_user_ns(){
                 // start a child to setup the uid namespace
                 fork_exec_newmap_t args = {
                         .prog="newuidmap",
-                        .id_str=brt_glob.uid_str,
+                        .id_str=uid_str,
                         .file="/etc/subuid",
-                        .query1=brt_glob.uid_str,
-                        .query2=brt_glob.username,
-                        .pid_str=brt_glob.pid_str,
+                        .query1=uid_str,
+                        .query2=username,
+                        .pid_str=pid_str,
                 };
                 uid_child = brt_fork_exec_newmap(args);
 
                 // start a child to setup the gid namespace
                 fork_exec_newmap_t args2 = {
                         .prog="newgidmap",
-                        .id_str=brt_glob.gid_str,
+                        .id_str=gid_str,
                         .file="/etc/subgid",
-                        .query1=brt_glob.gid_str,
-                        .query2=brt_glob.groupname,
-                        .pid_str=brt_glob.pid_str,
+                        .query1=gid_str,
+                        .query2=groupname,
+                        .pid_str=pid_str,
                 };
                 gid_child = brt_fork_exec_newmap(args2);
 
@@ -291,7 +279,7 @@ void brt_setup_user_ns(){
         }
 
         if (sinfo.si_status & SETUP_NO_UID){
-                if (!brt_printf_file("/proc/self/uid_map", "0 %u 1\n", brt_glob.uid)){
+                if (!brt_printf_file("/proc/self/uid_map", "0 %u 1\n", uid)){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
@@ -300,11 +288,17 @@ void brt_setup_user_ns(){
                         if (errno != ENOENT) 
                                 FATAL("could not open /proc/self/setgroups");
                 };
-                if (!brt_printf_file("/proc/self/gid_map", "0 %u 1\n", brt_glob.gid)){
+                if (!brt_printf_file("/proc/self/gid_map", "0 %u 1\n", gid)){
                         FATAL("could not open /proc/self/gid_map")
                 }
         }
+
+
+       free(uid_str);
+       free(gid_str);
+       free(pid_str);
 }
+
 
 
 int main(int argc, char* argv[]) {
@@ -320,7 +314,6 @@ int main(int argc, char* argv[]) {
         if (-1 == asprintf(&rootfs, "%s/rootfs", dirname(rootfs)))
             FATAL("asprintf")
 
-        brt_init_global();
         brt_setup_user_ns();
 	brt_chroot(rootfs);
 
