@@ -4,6 +4,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <pwd.h>
+#include <grp.h>
 #include <sched.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -43,8 +44,41 @@ SETUP_NO_GID = 0x02,
 SETUP_ERROR = 0x04,
 };
 
+typedef struct {
+        uid_t uid;
+        gid_t gid;
+        char *uid_str;
+        char *gid_str;
+        char *pid_str;
+        char *username;
+        char *groupname;
 
-int printf_file(char *file, char *format, ...){
+} brt_glob_t;
+
+brt_glob_t brt_glob;
+
+void brt_init_global(){
+        brt_glob.uid = getuid();
+        brt_glob.gid = getgid();
+        if (asprintf(&brt_glob.uid_str, "%d", brt_glob.uid) == -1) FATAL("asprintf");
+        if (asprintf(&brt_glob.gid_str, "%d", brt_glob.gid) == -1) FATAL("asprintf");
+        if (asprintf(&brt_glob.pid_str, "%d", getpid()) == -1) FATAL("asprintf");
+
+        struct passwd *pw = getpwuid(brt_glob.uid);
+        brt_glob.username = pw ? pw->pw_name : NULL;
+
+        struct group *grp = getgrgid(brt_glob.gid);
+        brt_glob.groupname = grp ? grp->gr_name : NULL;
+}
+
+void brt_free_global(){
+       free(brt_glob.uid_str);
+       free(brt_glob.gid_str);
+       free(brt_glob.pid_str);
+}
+
+
+int brt_printf_file(char *file, char *format, ...){
         FILE *fd;
 	if (! (fd = fopen(file, "w")))
                 return 0;
@@ -58,7 +92,7 @@ int printf_file(char *file, char *format, ...){
         return 1;
 }
 
-void whitelist_env(char *env_name){
+void brt_whitelist_env(char *env_name){
         char *n, *v;
         static size_t env_counter = 0;
         if (!env_name)
@@ -75,7 +109,7 @@ void whitelist_env(char *env_name){
         }
 }
 
-void pimped_chroot(char* rootfs) {
+void brt_chroot(char* rootfs) {
 
         char *origpwd;
         char *token, *str;
@@ -119,23 +153,21 @@ void pimped_chroot(char* rootfs) {
                 str = strdup(str);
                 token = strtok(str, ":");
                 while(token){
-                   whitelist_env(token);
+                   brt_whitelist_env(token);
                    token = strtok(NULL, ":");
                 }
                 free(str);
         }
-        whitelist_env("TERM");
-        whitelist_env("DISPLAY");
-        whitelist_env("HOME");
+        brt_whitelist_env("TERM");
+        brt_whitelist_env("DISPLAY");
+        brt_whitelist_env("HOME");
 	putenv("PATH=" PATH);
-        whitelist_env("PATH");
-        whitelist_env(NULL);
+        brt_whitelist_env("PATH");
+        brt_whitelist_env(NULL);
 }
 
-int parse_subid(const char *file, char **id_str, char **from, char **to){
+int brt_parse_subid(const char *file, const char *query1, const char *query2, char **from, char **to){
         FILE *fd;
-        struct passwd *pw;
-        uid_t uid;
         size_t read, user_size = 0, from_size = 0, to_size = 0;
         char *label = NULL;
 
@@ -144,13 +176,6 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
                 errno = 0;
                 return 0;
         }
-
-        // get username and uid
-        uid = getuid();
-        if (asprintf(id_str, "%d", uid) == -1) FATAL("asprintf")
-        pw = getpwuid(uid);
-        if (!pw)
-                FATAL("could not find uid/gid")
 
         // parse it
         for (;;){
@@ -161,37 +186,41 @@ int parse_subid(const char *file, char **id_str, char **from, char **to){
                 if ((read = getdelim(to, &to_size, '\n', fd)) == -1) break;
                 (*to)[read-1] = 0;
 
-                if (0 == strcmp(pw->pw_name, label) || 0 == strcmp(*id_str, label)){
+                if (               (query1 && 0 == strcmp(query1, label))
+                                || (query2 && 0 == strcmp(query2, label))){
+                        free(label);
                         return 1;
                 }
         }
+        if (label) free(label);
         return 0;
 }
 
 
-void setup_user_ns(){
+int brt_fork_exec_newmap(const char *prog, const char *id_str, const char *file, const char *query1, const char *query2){
+        char *from = NULL;
+        char *to = NULL;
+        pid_t child = fork();
+        if (child) return child;
+        if (!brt_parse_subid(file, query2, query1, &from, &to)) exit(127);
+        execlp(prog, prog,
+                        brt_glob.pid_str, "0", id_str, "1",
+                        "1", from, to, NULL);
+        if (errno == ENOENT) exit(127);
+        FATAL("execlp");
+}
+
+
+void brt_setup_user_ns(){
         int setup_report = 0;
         int sig;
-        int status;
         pid_t master_child, uid_child, gid_child;
-        int found_subuid, found_subgid;
         siginfo_t sinfo;
-        uid_t origuid = getuid();
-        gid_t origgid = getgid();
 
+        char *uid_query1;
+        char *uid_query2;
         char *uid_from = NULL;
-        char *uid_str = NULL;
         char *uid_to = NULL;
-
-        char *gid_from = NULL;
-        char *gid_to = NULL;
-        char *gid_str = NULL;
-
-        found_subuid = parse_subid("/etc/subuid", &uid_str, &uid_from, &uid_to);
-        found_subgid = parse_subid("/etc/subgid", &gid_str, &gid_from, &gid_to);
-
-        char *pid_str;
-        if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
 
         sigset_t sigset;
         sigemptyset(&sigset);
@@ -205,53 +234,23 @@ void setup_user_ns(){
                 sigwait(&sigset, &sig);
 
                 // start a child to setup the uid namespace
-                if (found_subuid){
-                        uid_child = fork();
-                        if (-1 == uid_child) FATAL("fork");
-                        if (0 == uid_child){
-                                execlp("newuidmap", "newuidmap",
-                                         pid_str, "0", uid_str, "1",
-                                         "1", uid_from, uid_to, NULL);
-                                if (errno == ENOENT) exit(127);
-                                FATAL("execlp");
-                        }
-                }
+                uid_child = brt_fork_exec_newmap("newuidmap", brt_glob.uid_str, "/etc/subuid", brt_glob.uid_str, brt_glob.username);
 
                 // start a child to setup the gid namespace
-                if (found_subgid){
-                        gid_child = fork();
-                        if (-1 == gid_child) FATAL("fork");
-                        if (0 == gid_child){
-                                execlp("newgidmap", "newgidmap",
-                                                pid_str, "0", gid_str, "1",
-                                                "1", gid_from, gid_to, NULL);
-                                if (errno == ENOENT) exit(127);
-                                FATAL("execlp");
-                        }
+                gid_child = brt_fork_exec_newmap("newgidmap", brt_glob.gid_str, "/etc/subgid", brt_glob.gid_str, brt_glob.groupname);
+
+                if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
+                switch (sinfo.si_status){
+                        case 0: break;
+                        case 127: setup_report |= SETUP_NO_UID; break;
+                        default: setup_report |= SETUP_ERROR; break;
                 }
 
-                // check childs status
-                if (found_subuid){
-                        if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
-                        switch (sinfo.si_status){
-                                case 0: break;
-                                case 127: setup_report |= SETUP_NO_UID; break;
-                                default: setup_report |= SETUP_ERROR; break;
-                        }
-                } else {
-                        setup_report |= SETUP_NO_UID;
-                }
-
-                // check the other childs status
-                if (found_subgid){
-                        if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
-                        switch (sinfo.si_status){
-                                case 0: break;
-                                case 127: setup_report |= SETUP_NO_GID; break;
-                                default: setup_report |= SETUP_ERROR; break;
-                        }
-                } else {
-                        setup_report |= SETUP_NO_GID;
+                if (-1 == waitid(P_PID, gid_child, &sinfo, WEXITED)) FATAL("waitid");
+                switch (sinfo.si_status){
+                        case 0: break;
+                        case 127: setup_report |= SETUP_NO_GID; break;
+                        default: setup_report |= SETUP_ERROR; break;
                 }
 
                 // return setup report to parent
@@ -266,30 +265,24 @@ void setup_user_ns(){
         kill(master_child, SIGUSR1);
         if (-1 == waitid(P_PID, master_child, &sinfo, WEXITED)) FATAL("waitid");
 
+        if (sinfo.si_status & SETUP_ERROR){
+                FATAL("child died badly");
+        }
+
         if (sinfo.si_status & SETUP_NO_UID){
-                if (!printf_file("/proc/self/uid_map", "0 %u 1\n", origuid)){
+                if (!brt_printf_file("/proc/self/uid_map", "0 %u 1\n", brt_glob.uid)){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
         if (sinfo.si_status  & SETUP_NO_GID){
-                if (!printf_file("/proc/self/setgroups", "deny")){
+                if (!brt_printf_file("/proc/self/setgroups", "deny")){
                         if (errno != ENOENT) 
                                 FATAL("could not open /proc/self/setgroups");
                 };
-                if (!printf_file("/proc/self/gid_map", "0 %u 1\n", origgid)){
+                if (!brt_printf_file("/proc/self/gid_map", "0 %u 1\n", brt_glob.gid)){
                         FATAL("could not open /proc/self/gid_map")
                 }
         }
-        if (sinfo.si_status & SETUP_ERROR){
-                FATAL("child died");
-        }
-
-        if (uid_from) free(uid_from);
-        if (uid_to)   free(uid_to);
-        if (uid_str)  free(uid_str);
-        if (gid_from) free(gid_from);
-        if (gid_to)   free(gid_to);
-        if (gid_str)  free(gid_str);
 }
 
 
@@ -306,8 +299,9 @@ int main(int argc, char* argv[]) {
         if (-1 == asprintf(&rootfs, "%s/rootfs", dirname(rootfs)))
             FATAL("asprintf")
 
-       setup_user_ns();
-	pimped_chroot(rootfs);
+        brt_init_global();
+        brt_setup_user_ns();
+	brt_chroot(rootfs);
 
         if (-1 == execvp(argv[0], argv))
                 FATAL("could not exec %s in %s", argv[0], rootfs);
