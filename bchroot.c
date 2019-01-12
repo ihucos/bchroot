@@ -197,14 +197,24 @@ int brt_parse_subid(const char *file, const char *query1, const char *query2, ch
 }
 
 
-int brt_fork_exec_newmap(const char *prog, const char *id_str, const char *file, const char *query1, const char *query2){
+typedef struct {
+        char *prog;
+        char *id_str;
+        char *pid_str;
+        char *file;
+        char *query1;
+        char *query2;
+
+} fork_exec_newmap_t;
+
+int brt_fork_exec_newmap(fork_exec_newmap_t args){
         char *from = NULL;
         char *to = NULL;
         pid_t child = fork();
         if (child) return child;
-        if (!brt_parse_subid(file, query2, query1, &from, &to)) exit(127);
-        execlp(prog, prog,
-                        brt_glob.pid_str, "0", id_str, "1",
+        if (!brt_parse_subid(args.file, args.query2, args.query1, &from, &to)) exit(127);
+        execlp(args.prog, args.prog,
+                        args.pid_str, "0", args.id_str, "1",
                         "1", from, to, NULL);
         if (errno == ENOENT) exit(127);
         FATAL("execlp");
@@ -216,11 +226,6 @@ void brt_setup_user_ns(){
         int sig;
         pid_t master_child, uid_child, gid_child;
         siginfo_t sinfo;
-
-        char *uid_query1;
-        char *uid_query2;
-        char *uid_from = NULL;
-        char *uid_to = NULL;
 
         sigset_t sigset;
         sigemptyset(&sigset);
@@ -234,10 +239,26 @@ void brt_setup_user_ns(){
                 sigwait(&sigset, &sig);
 
                 // start a child to setup the uid namespace
-                uid_child = brt_fork_exec_newmap("newuidmap", brt_glob.uid_str, "/etc/subuid", brt_glob.uid_str, brt_glob.username);
+                fork_exec_newmap_t args = {
+                        .prog="newuidmap",
+                        .id_str=brt_glob.uid_str,
+                        .file="/etc/subuid",
+                        .query1=brt_glob.uid_str,
+                        .query2=brt_glob.username,
+                        .pid_str=brt_glob.pid_str,
+                };
+                uid_child = brt_fork_exec_newmap(args);
 
                 // start a child to setup the gid namespace
-                gid_child = brt_fork_exec_newmap("newgidmap", brt_glob.gid_str, "/etc/subgid", brt_glob.gid_str, brt_glob.groupname);
+                fork_exec_newmap_t args2 = {
+                        .prog="newgidmap",
+                        .id_str=brt_glob.gid_str,
+                        .file="/etc/subgid",
+                        .query1=brt_glob.gid_str,
+                        .query2=brt_glob.groupname,
+                        .pid_str=brt_glob.pid_str,
+                };
+                gid_child = brt_fork_exec_newmap(args2);
 
                 if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
                 switch (sinfo.si_status){
