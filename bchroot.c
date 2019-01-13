@@ -144,11 +144,11 @@ void brt_setup_user_ns(){
 
 	uid_t uid;
 	gid_t gid;
-	char *uid_str;
-	char *gid_str;
-	char *pid_str;
-	char *username;
-	char *groupname;
+	char *uid_str,
+	     *gid_str,
+	     *pid_str,
+	     *username,
+	     *groupname;
 
 	uid = getuid();
 	gid = getgid();
