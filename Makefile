@@ -1,4 +1,13 @@
 CC=musl-gcc
 CFLAGS=-static
-bchroot: bchroot.c
+
+all: bchroot zudo
+
+bchroot: bchroot.c brtlib.c
 	$(CC) $(CFLAGS) -o bchroot bchroot.c
+
+zudo: zudo.c brtlib.c
+	$(CC) $(CFLAGS) -o zudo zudo.c
+
+clean:
+	rm zudo bchroot
