@@ -90,17 +90,18 @@ void brt_chroot(char* rootfs) {
         char *origpwd;
         char *token, *str;
 
-        if (!(origpwd = get_current_dir_name()))
-            brt_fatal("error calling get_current_dir_name");
+        (origpwd = get_current_dir_name())
+                 || brt_fatal("get_current_dir_name");
 
-        if (-1 == chdir(rootfs))
-            brt_fatal("could not chdir to %s", rootfs);
+        chdir(rootfs
+             ) != -1 || brt_fatal("could not chdir to %s", rootfs);
 
         //
         // mount stuff
         //
-       if (-1 == unshare(CLONE_NEWNS))
-                brt_fatal("could not unshare");
+        unshare(CLONE_NEWNS
+               ) != -1 || brt_fatal("could not unshare");
+
         if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
 
             // ignore errno as it happens inside a chroot
@@ -117,8 +118,8 @@ void brt_chroot(char* rootfs) {
         RBIND("/tmp");
         RBIND("/etc/resolv.conf"); // FIXME: check what happens if it's a symlink
 
-        if (-1 == chroot("."))
-                brt_fatal("could not chroot to %s", rootfs);
+        chroot("."
+              ) != -1 || brt_fatal("could not chroot to %s", rootfs);
 
         if (-1 == chdir(origpwd)){
                 if (-1 == chdir("/"))
@@ -207,9 +208,12 @@ void brt_setup_user_ns(){
 
         uid = getuid();
         gid = getgid();
-        if (asprintf(&uid_str, "%d", uid) == -1) brt_fatal("asprintf");
-        if (asprintf(&gid_str, "%d", gid) == -1) brt_fatal("asprintf");
-        if (asprintf(&pid_str, "%d", getpid()) == -1) brt_fatal("asprintf");
+        asprintf(&uid_str, "%d", uid
+                ) != -1 || brt_fatal("asprintf");
+        asprintf(&gid_str, "%d", gid
+                ) != -1 || brt_fatal("asprintf");
+        asprintf(&pid_str, "%d", getpid()
+                ) != -1 || brt_fatal("asprintf");
         struct passwd *pw = getpwuid(uid);
         username = pw ? pw->pw_name : NULL;
         struct group *grp = getgrgid(gid);
@@ -242,7 +246,7 @@ void brt_setup_user_ns(){
         //
         // start child, which calls newuidmap/newgidmap on its parent
         //
-        if (-1 == (master_child = fork())) brt_fatal("fork");
+        (master_child = fork()) != -1 || brt_fatal("fork");
         if (!master_child){
 
                 // wait for parent's signal
@@ -257,8 +261,10 @@ void brt_setup_user_ns(){
                 //
                 // wait for children
                 //
-                if (-1 == waitid(P_PID, uid_child, &uid_child_sinfo, WEXITED)) brt_fatal("waitid");
-                if (-1 == waitid(P_PID, gid_child, &gid_child_sinfo, WEXITED)) brt_fatal("waitid");
+                waitid(P_PID, uid_child, &uid_child_sinfo, WEXITED
+                      ) != -1 || brt_fatal("waitid");
+                waitid(P_PID, gid_child, &gid_child_sinfo, WEXITED
+                      ) != -1 || brt_fatal("waitid");
 
                 //
                 // combine exit statuses to master exit status
@@ -284,9 +290,8 @@ void brt_setup_user_ns(){
         //
         // unshare our user namespace, so the child can change it
         //
-        if (-1 == unshare(CLONE_NEWUSER)){
-                        brt_fatal("could not unshare user namespace");
-        }
+        unshare(CLONE_NEWUSER
+               ) != -1 || brt_fatal("could not unshare user namespace");
 
         //
         // signal child to stop waiting and attempt to call newuidmap/newgidmap
@@ -296,7 +301,8 @@ void brt_setup_user_ns(){
         //
         // wait for childs exit status
         //
-        if (-1 == waitid(P_PID, master_child, &master_child_sinfo, WEXITED)) brt_fatal("waitid");
+        waitid(P_PID, master_child, &master_child_sinfo, WEXITED
+              ) != -1 || brt_fatal("waitid");
 
         //
         // die if bad child exit status
@@ -309,9 +315,8 @@ void brt_setup_user_ns(){
         // fallback to this if newuidmap was unsuccessful
         //
         if (master_child_sinfo.si_status & SETUP_NO_UID){
-                if (!brt_printf_file("/proc/self/uid_map", "0 %u 1\n", uid)){
-                        brt_fatal("could not open /proc/self/uid_map");
-                }
+                brt_printf_file("/proc/self/uid_map", "0 %u 1\n", uid
+                               ) || brt_fatal("could not open /proc/self/uid_map");
         }
 
         //
@@ -322,9 +327,8 @@ void brt_setup_user_ns(){
                         if (errno != ENOENT) 
                                 brt_fatal("could not open /proc/self/setgroups");
                 };
-                if (!brt_printf_file("/proc/self/gid_map", "0 %u 1\n", gid)){
-                        brt_fatal("could not open /proc/self/gid_map");
-                }
+                brt_printf_file("/proc/self/gid_map", "0 %u 1\n", gid
+                               ) || brt_fatal("could not open /proc/self/gid_map");
         }
 
 
@@ -345,14 +349,14 @@ int main(int argc, char* argv[]) {
         char *rootfs;
 
         argv[0] = binaryname;
-        if (NULL == (rootfs = realpath("/proc/self/exe", NULL)))
-            brt_fatal("could not call realpath(\"/proc/self/exe\")");
-        if (-1 == asprintf(&rootfs, "%s/rootfs", dirname(rootfs)))
-            brt_fatal("asprintf");
+        (rootfs = realpath("/proc/self/exe", NULL)
+                          ) != NULL || brt_fatal("could not call realpath(\"/proc/self/exe\")");
+        asprintf(&rootfs, "%s/rootfs", dirname(rootfs)
+                ) != -1 || brt_fatal("asprintf");
 
         brt_setup_user_ns();
 	brt_chroot(rootfs);
 
-        if (-1 == execvp(argv[0], argv))
-                brt_fatal("could not exec %s in %s", argv[0], rootfs);
+        execvp(argv[0], argv
+              ) != -1 || brt_fatal("could not exec %s in %s", argv[0], rootfs);
 }
