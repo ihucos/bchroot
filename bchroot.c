@@ -21,24 +21,6 @@
 #define PRESET_PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 
-void brt_whitelist_env(char *env_name){
-	char *n, *v;
-	static size_t env_counter = 0;
-	if (!env_name)
-		environ[env_counter++] = NULL;
-	else {
-		for(size_t i=env_counter; environ[i]; i++){
-			for(
-			    n = env_name, v = environ[i];
-			    *n && *v && *n == *v;
-			    n++, v++);
-				if (*v == '=' && *n == 0)
-					environ[env_counter++] = environ[i];
-		}
-	}
-}
-
-
 int main(int argc, char* argv[]) {
 	char i,
 	     *token,

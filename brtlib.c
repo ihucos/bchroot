@@ -95,6 +95,24 @@ int brt_parse_subid(
 }
 
 
+void brt_whitelist_env(char *env_name){
+	char *n, *v;
+	static size_t env_counter = 0;
+	if (!env_name)
+		environ[env_counter++] = NULL;
+	else {
+		for(size_t i=env_counter; environ[i]; i++){
+			for(
+			    n = env_name, v = environ[i];
+			    *n && *v && *n == *v;
+			    n++, v++);
+				if (*v == '=' && *n == 0)
+					environ[env_counter++] = environ[i];
+		}
+	}
+}
+
+
 int brt_fork_exec_newmap(fork_exec_newmap_t args){
         char *from = NULL;
         char *to = NULL;
