@@ -268,7 +268,7 @@ int main(int argc, char* argv[]) {
 	     ) != -1 || brt_fatal("cd %s/rootfs", rootfs);
 
 	/* give us "fake root" */
-	brt_setup_user_ns();
+	if (getuid()) brt_setup_user_ns();
 
 	unshare(CLONE_NEWNS
 	       ) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
