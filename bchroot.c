@@ -18,6 +18,7 @@
 
 
 #define PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 #define RBIND(src) {\
 if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
         if (errno != ENOENT){ \
@@ -87,8 +88,7 @@ void brt_whitelist_env(char *env_name){
 
 void brt_chroot(char* rootfs) {
 
-        char *origpwd;
-        char *token, *str;
+        char *token, *str, *origpwd;
 
         (origpwd = get_current_dir_name())
                  || brt_fatal("get_current_dir_name");
@@ -103,13 +103,13 @@ void brt_chroot(char* rootfs) {
                ) != -1 || brt_fatal("could not unshare");
 
         if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
-
             // ignore errno as it happens inside a chroot
             if (errno != EINVAL){
                 brt_fatal("could not change propagation of /");
             } else {
                 errno = 0;
             }
+
         RBIND("/dev");
         RBIND("/home");
         RBIND("/proc");
@@ -135,10 +135,13 @@ void brt_chroot(char* rootfs) {
                 }
                 free(str);
         }
+
+        // set path to constant
+	putenv("PATH=" PATH);
+
         brt_whitelist_env("TERM");
         brt_whitelist_env("DISPLAY");
         brt_whitelist_env("HOME");
-	putenv("PATH=" PATH);
         brt_whitelist_env("PATH");
         brt_whitelist_env(NULL);
 }
@@ -189,9 +192,7 @@ int brt_fork_exec_newmap(fork_exec_newmap_t args){
 
 void brt_setup_user_ns(){
 
-        //
-        // declare and populate variables
-        //
+        /* declare and populate variables */
 
         int setup_report = 0;
         int sig;
@@ -208,11 +209,11 @@ void brt_setup_user_ns(){
 
         uid = getuid();
         gid = getgid();
-        asprintf(&uid_str, "%d", uid
+        asprintf(&uid_str, "%u", uid
                 ) != -1 || brt_fatal("asprintf");
-        asprintf(&gid_str, "%d", gid
+        asprintf(&gid_str, "%u", gid
                 ) != -1 || brt_fatal("asprintf");
-        asprintf(&pid_str, "%d", getpid()
+        asprintf(&pid_str, "%u", getpid()
                 ) != -1 || brt_fatal("asprintf");
         struct passwd *pw = getpwuid(uid);
         username = pw ? pw->pw_name : NULL;
@@ -235,40 +236,25 @@ void brt_setup_user_ns(){
                 .query2=groupname,
                 .pid_str=pid_str};
 
-        //
-        // prepare signal mask for SIGUSR1
-        //
         sigset_t sigset;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGUSR1);
         sigprocmask(SIG_BLOCK, &sigset, NULL);
 
-        //
-        // start child, which calls newuidmap/newgidmap on its parent
-        //
         (master_child = fork()) != -1 || brt_fatal("fork");
         if (!master_child){
 
                 // wait for parent's signal
                 sigwait(&sigset, &sig);
 
-                // fork then exec newuidmap
                 uid_child = brt_fork_exec_newmap(map_uid);
-
-                // fork then exec newgidmap
                 gid_child = brt_fork_exec_newmap(map_gid);
 
-                //
-                // wait for children
-                //
                 waitid(P_PID, uid_child, &uid_child_sinfo, WEXITED
                       ) != -1 || brt_fatal("waitid");
                 waitid(P_PID, gid_child, &gid_child_sinfo, WEXITED
                       ) != -1 || brt_fatal("waitid");
 
-                //
-                // combine exit statuses to master exit status
-                //
                 switch (uid_child_sinfo.si_status){
                         case 0: break;
                         case 127: setup_report |= SETUP_NO_UID; break;
@@ -280,61 +266,34 @@ void brt_setup_user_ns(){
                         default: setup_report |= SETUP_ERROR; break;
                 }
 
-                //
-                // report child status to parent
-                //
                 exit(setup_report);
                
         }
 
-        //
-        // unshare our user namespace, so the child can change it
-        //
         unshare(CLONE_NEWUSER
                ) != -1 || brt_fatal("could not unshare user namespace");
 
-        //
-        // signal child to stop waiting and attempt to call newuidmap/newgidmap
-        //
         kill(master_child, SIGUSR1);
-
-        //
-        // wait for childs exit status
-        //
         waitid(P_PID, master_child, &master_child_sinfo, WEXITED
               ) != -1 || brt_fatal("waitid");
 
-        //
-        // die if bad child exit status
-        //
         if (master_child_sinfo.si_status & SETUP_ERROR){
                 brt_fatal("child died badly");
         }
-
-        //
-        // fallback to this if newuidmap was unsuccessful
-        //
         if (master_child_sinfo.si_status & SETUP_NO_UID){
-                brt_printf_file("/proc/self/uid_map", "0 %u 1\n", uid
-                               ) || brt_fatal("could not open /proc/self/uid_map");
+                brt_printf_file("/proc/self/uid_map", "0 %s 1\n", uid_str
+                               ) || brt_fatal("write /proc/self/uid_map");
         }
-
-        //
-        // fallback to that if newgidmap was unsuccessful
-        //
-        if (master_child_sinfo.si_status  & SETUP_NO_GID){
+        if (master_child_sinfo.si_status & SETUP_NO_GID){
                 if (!brt_printf_file("/proc/self/setgroups", "deny")){
-                        if (errno != ENOENT) 
-                                brt_fatal("could not open /proc/self/setgroups");
+                        /* ignore error if file does not exist, as this happens
+                         * in older kernels*/
+                        if (errno != ENOENT)
+                                brt_fatal("write /proc/self/setgroups");
                 };
-                brt_printf_file("/proc/self/gid_map", "0 %u 1\n", gid
-                               ) || brt_fatal("could not open /proc/self/gid_map");
+                brt_printf_file("/proc/self/gid_map", "0 %s 1\n", gid_str
+                               ) || brt_fatal("write /proc/self/gid_map");
         }
-
-
-       //
-       // free allocated space
-       //
        free(uid_str);
        free(gid_str);
        free(pid_str);
@@ -345,12 +304,12 @@ void brt_setup_user_ns(){
 int main(int argc, char* argv[]) {
 	// basename destructs argv[0], that is ok because we overwrite it in
 	// every case
-	char *binaryname = basename(argv[0]);
         char *rootfs;
+        argv[0] = program_invocation_short_name;
 
-        argv[0] = binaryname;
         (rootfs = realpath("/proc/self/exe", NULL)
-                          ) != NULL || brt_fatal("could not call realpath(\"/proc/self/exe\")");
+                          ) != NULL || brt_fatal("realpath(\"/proc/self/exe\")");
+
         asprintf(&rootfs, "%s/rootfs", dirname(rootfs)
                 ) != -1 || brt_fatal("asprintf");
 
