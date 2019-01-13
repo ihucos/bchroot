@@ -19,12 +19,10 @@
 
 #define PRESET_PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-#define RBIND(src) {\
-if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
-        if (errno != ENOENT){ \
-                brt_fatal("could not mount %s to %s%s", src, get_current_dir_name(), src); \
-        } \
-}
+//
+// FIXME: all error hanind is brokne, || does not work in c
+//
+
 
 
 enum {
@@ -242,11 +240,13 @@ void brt_setup_user_ns(){
 
 
 int main(int argc, char* argv[]) {
+	char i;
         char *token,
 	     *str,
              *progpath = realpath("/proc/self/exe", NULL),
              *origpwd = get_current_dir_name(),
-	     *rootfs = dirname(progpath);
+	     *rootfs = dirname(strdup(progpath)); // FIXME: check for no memory error
+	     char *mounts[] = {"./dev", "./home", "./proc", "./root", "./sys", "./tmp", "./etc/resolv.conf"};
 
         if (!progpath) brt_fatal("realpath");
 	if (!origpwd)  brt_fatal("get_current_dir_name");
@@ -270,13 +270,15 @@ int main(int argc, char* argv[]) {
             } else {
                 errno = 0;
             }
-        RBIND("/dev");
-        RBIND("/home");
-        RBIND("/proc");
-        RBIND("/root");
-        RBIND("/sys");
-        RBIND("/tmp");
-        RBIND("/etc/resolv.conf"); // FIXME: check what happens if it's a symlink
+	for(i = 0; i < sizeof(mounts) / sizeof(char*); i++){
+		if (-1 == mount(mounts[i]+1, mounts[i], "none",
+		                MS_MGC_VAL|MS_BIND|MS_REC, NULL)){
+			if (errno != ENOENT){
+				brt_fatal("rbind %s to %s%s",
+			                  mounts[i]+1, origpwd, mounts[i]+1);
+			}
+		}
+	}
 
         chroot("."
               ) != -1 || brt_fatal("could not chroot to %s/rootfs",
