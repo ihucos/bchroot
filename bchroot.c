@@ -189,10 +189,15 @@ int brt_fork_exec_newmap(fork_exec_newmap_t args){
 
 
 void brt_setup_user_ns(){
+
         int setup_report = 0;
         int sig;
         pid_t master_child, uid_child, gid_child;
         siginfo_t sinfo;
+
+        //
+        // populate variables
+        //
 
         uid_t uid;
         gid_t gid;
@@ -207,46 +212,53 @@ void brt_setup_user_ns(){
         if (asprintf(&uid_str, "%d", uid) == -1) FATAL("asprintf");
         if (asprintf(&gid_str, "%d", gid) == -1) FATAL("asprintf");
         if (asprintf(&pid_str, "%d", getpid()) == -1) FATAL("asprintf");
-
         struct passwd *pw = getpwuid(uid);
         username = pw ? pw->pw_name : NULL;
-
         struct group *grp = getgrgid(gid);
         groupname = grp ? grp->gr_name : NULL;
 
+        fork_exec_newmap_t map_uid = {
+                .prog="newuidmap",
+                .id_str=uid_str,
+                .file="/etc/subuid",
+                .query1=uid_str,
+                .query2=username,
+                .pid_str=pid_str};
 
+        fork_exec_newmap_t map_gid = {
+                .prog="newgidmap",
+                .id_str=gid_str,
+                .file="/etc/subgid",
+                .query1=gid_str,
+                .query2=groupname,
+                .pid_str=pid_str};
+
+        //
+        // prepare signal mask for SIGUSR1
+        //
         sigset_t sigset;
         sigemptyset(&sigset);
         sigaddset(&sigset, SIGUSR1);
         sigprocmask(SIG_BLOCK, &sigset, NULL);
 
+        //
+        // start child, which calls newuidmap/newgidmap on its parent
+        //
         if (-1 == (master_child = fork())) FATAL("fork")
         if (!master_child){
 
-                // wait for parents signal after he unshares the user namespace
+                // wait for paren'ts signal
                 sigwait(&sigset, &sig);
 
-                // start a child to setup the uid namespace
-                fork_exec_newmap_t args = {
-                        .prog="newuidmap",
-                        .id_str=uid_str,
-                        .file="/etc/subuid",
-                        .query1=uid_str,
-                        .query2=username,
-                        .pid_str=pid_str,
-                };
-                uid_child = brt_fork_exec_newmap(args);
+                // fork then exec newuidmap
+                uid_child = brt_fork_exec_newmap(map_uid);
 
-                // start a child to setup the gid namespace
-                fork_exec_newmap_t args2 = {
-                        .prog="newgidmap",
-                        .id_str=gid_str,
-                        .file="/etc/subgid",
-                        .query1=gid_str,
-                        .query2=groupname,
-                        .pid_str=pid_str,
-                };
-                gid_child = brt_fork_exec_newmap(args2);
+                // fork then exec newgidmap
+                gid_child = brt_fork_exec_newmap(map_gid);
+
+                //
+                // wait for childs, interpret its exit status
+                //
 
                 if (-1 == waitid(P_PID, uid_child, &sinfo, WEXITED)) FATAL("waitid");
                 switch (sinfo.si_status){
@@ -262,7 +274,9 @@ void brt_setup_user_ns(){
                         default: setup_report |= SETUP_ERROR; break;
                 }
 
-                // return setup report to parent
+                //
+                // report child status to parent
+                //
                 exit(setup_report);
                
         }
@@ -271,18 +285,35 @@ void brt_setup_user_ns(){
                         FATAL("could not unshare user namespace");
         }
 
+        //
+        // signal child to stop waiting and attempt to call newuidmap/newgidmap
+        //
         kill(master_child, SIGUSR1);
+
+        //
+        // wait for childs exit status
+        //
         if (-1 == waitid(P_PID, master_child, &sinfo, WEXITED)) FATAL("waitid");
 
+        //
+        // die if bad child exit status
+        //
         if (sinfo.si_status & SETUP_ERROR){
                 FATAL("child died badly");
         }
 
+        //
+        // fallback to this if newuidmap was unsuccessful
+        //
         if (sinfo.si_status & SETUP_NO_UID){
                 if (!brt_printf_file("/proc/self/uid_map", "0 %u 1\n", uid)){
                         FATAL("could not open /proc/self/uid_map")
                 }
         }
+
+        //
+        // fallback to that if newgidmap was unsuccessful
+        //
         if (sinfo.si_status  & SETUP_NO_GID){
                 if (!brt_printf_file("/proc/self/setgroups", "deny")){
                         if (errno != ENOENT) 
@@ -294,6 +325,9 @@ void brt_setup_user_ns(){
         }
 
 
+       //
+       // free allocated space
+       //
        free(uid_str);
        free(gid_str);
        free(pid_str);
