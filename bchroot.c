@@ -320,5 +320,5 @@ int main(int argc, char* argv[]) {
 	/* exec away */
 	argv[0] = program_invocation_short_name;
 	execvp(argv[0], argv
-		) != -1 || brt_fatal("could not exec %s in %s", argv[0], rootfs);
+		) != -1 || brt_fatal("chroot %s/rootfs %s", rootfs, argv[0]);
 }
