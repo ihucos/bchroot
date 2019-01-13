@@ -19,11 +19,13 @@
 
 #define PRESET_PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+
 enum {
 SETUP_NO_UID = 0x01,
 SETUP_NO_GID = 0x02,
 SETUP_ERROR = 0x04,
 };
+
 
 typedef struct {
 	char *prog;
@@ -47,6 +49,7 @@ int brt_fatal(char *format, ...){
 	exit(1);
 }
 
+
 int brt_printf_to_file(const char *file, const char *format, ...){
 	FILE *fd;
 	if (! (fd = fopen(file, "w")))
@@ -60,6 +63,7 @@ int brt_printf_to_file(const char *file, const char *format, ...){
 	fclose(fd);
 	return 1;
 }
+
 
 void brt_whitelist_env(char *env_name){
 	char *n, *v;
@@ -78,7 +82,13 @@ void brt_whitelist_env(char *env_name){
 	}
 }
 
-int brt_parse_subid(const char *file, const char *query1, const char *query2, char **from, char **to){
+
+int brt_parse_subid(
+		    const char *file,
+		    const char *query1,
+		    const char *query2,
+		    char **from,
+		    char **to) {
 	FILE *fd;
 	size_t read, user_size = 0, from_size = 0, to_size = 0;
 	char *label = NULL;
@@ -108,12 +118,14 @@ int brt_parse_subid(const char *file, const char *query1, const char *query2, ch
 	return 0;
 }
 
+
 int brt_fork_exec_newmap(fork_exec_newmap_t args){
 	char *from = NULL;
 	char *to = NULL;
 	pid_t child = fork();
 	if (child) return child;
-	if (!brt_parse_subid(args.file, args.query2, args.query1, &from, &to)) exit(127);
+	if (!brt_parse_subid(args.file, args.query2, args.query1, &from, &to))
+		exit(127);
 	execlp(args.prog, args.prog,
 	       args.pid_str, "0", args.id_str, "1",
 	       "1", from, to, NULL);
@@ -229,7 +241,6 @@ void brt_setup_user_ns(){
 }
 
 
-
 int main(int argc, char* argv[]) {
 	char i;
 	char *token,
@@ -237,7 +248,15 @@ int main(int argc, char* argv[]) {
 	     *progpath = realpath("/proc/self/exe", NULL),
 	     *origpwd = get_current_dir_name(),
 	     *rootfs = dirname(strdup(progpath)); // FIXME: check for no memory error
-	     char *mounts[] = {"./dev", "./home", "./proc", "./root", "./sys", "./tmp", "./etc/resolv.conf"};
+	     char *mounts[] = {
+	             "./dev",
+		     "./home",
+		     "./proc",
+		     "./root",
+		     "./sys",
+		     "./tmp",
+		     "./etc/resolv.conf"
+		};
 
 	if (!progpath) brt_fatal("realpath");
 	if (!origpwd)  brt_fatal("get_current_dir_name");
