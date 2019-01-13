@@ -55,13 +55,13 @@ int brt_fatal(char *format, ...){
         exit(1);
 }
 
-int brt_printf_file(char *file, char *format, ...){
+int brt_printf_to_file(const char *file, const char *format, ...){
         FILE *fd;
 	if (! (fd = fopen(file, "w")))
                 return 0;
         va_list args;
         va_start(args, format);
-        vfprintf(fd, format, args);
+        vfprintf(fd, format, args) >= 0 || brt_fatal("vfprintf %s", file);
         va_end(args);
         if (errno)
                 brt_fatal("could not write to %s", file);
@@ -86,15 +86,9 @@ void brt_whitelist_env(char *env_name){
         }
 }
 
-void brt_chroot(char* rootfs) {
+void brt_chroot(const char* attempt_chdir_to) {
 
-        char *token, *str, *origpwd;
-
-        (origpwd = get_current_dir_name())
-                 || brt_fatal("get_current_dir_name");
-
-        chdir(rootfs
-             ) != -1 || brt_fatal("could not chdir to %s", rootfs);
+        char *token, *str;
 
         //
         // mount stuff
@@ -119,11 +113,11 @@ void brt_chroot(char* rootfs) {
         RBIND("/etc/resolv.conf"); // FIXME: check what happens if it's a symlink
 
         chroot("."
-              ) != -1 || brt_fatal("could not chroot to %s", rootfs);
+              ) != -1 || brt_fatal("could not chroot to %s", "XXXXXXX"); // FIXME: fill XXXXx
 
-        if (-1 == chdir(origpwd)){
+        if (-1 == chdir(attempt_chdir_to)){
                 if (-1 == chdir("/"))
-                        brt_fatal("could not chdir");
+                        brt_fatal("chdir(\"/\")");
         }
 
         if (str = getenv("BCHROOT_EXPORT")) {
@@ -281,17 +275,17 @@ void brt_setup_user_ns(){
                 brt_fatal("child died badly");
         }
         if (master_child_sinfo.si_status & SETUP_NO_UID){
-                brt_printf_file("/proc/self/uid_map", "0 %s 1\n", uid_str
+                brt_printf_to_file("/proc/self/uid_map", "0 %s 1\n", uid_str
                                ) || brt_fatal("write /proc/self/uid_map");
         }
         if (master_child_sinfo.si_status & SETUP_NO_GID){
-                if (!brt_printf_file("/proc/self/setgroups", "deny")){
+                if (!brt_printf_to_file("/proc/self/setgroups", "deny")){
                         /* ignore error if file does not exist, as this happens
                          * in older kernels*/
                         if (errno != ENOENT)
                                 brt_fatal("write /proc/self/setgroups");
                 };
-                brt_printf_file("/proc/self/gid_map", "0 %s 1\n", gid_str
+                brt_printf_to_file("/proc/self/gid_map", "0 %s 1\n", gid_str
                                ) || brt_fatal("write /proc/self/gid_map");
         }
        free(uid_str);
@@ -302,20 +296,33 @@ void brt_setup_user_ns(){
 
 
 int main(int argc, char* argv[]) {
-	// basename destructs argv[0], that is ok because we overwrite it in
-	// every case
         char *rootfs;
-        argv[0] = program_invocation_short_name;
+        char *progpath;
+        char *origpwd;
 
-        (rootfs = realpath("/proc/self/exe", NULL)
+        origpwd = get_current_dir_name();
+
+        (progpath = realpath("/proc/self/exe", NULL)
                           ) != NULL || brt_fatal("realpath(\"/proc/self/exe\")");
+        rootfs = dirname(progpath);
+        chdir(rootfs
+             ) != -1 || brt_fatal("cd %s", get_current_dir_name());
 
-        asprintf(&rootfs, "%s/rootfs", dirname(rootfs)
-                ) != -1 || brt_fatal("asprintf");
+        chdir("./rootfs"
+             ) != -1 || brt_fatal("cd %s/rootfs", get_current_dir_name());
+
 
         brt_setup_user_ns();
-	brt_chroot(rootfs);
+	brt_chroot(origpwd);
 
+        /* free some */
+        free(progpath);
+        progpath = NULL;
+        rootfs = NULL;
+        free(origpwd);
+        origpwd = NULL;
+
+        argv[0] = program_invocation_short_name;
         execvp(argv[0], argv
               ) != -1 || brt_fatal("could not exec %s in %s", argv[0], rootfs);
 }
