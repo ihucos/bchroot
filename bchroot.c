@@ -92,14 +92,11 @@ int brt_parse_subid(
 	FILE *fd;
 	size_t read, user_size = 0, from_size = 0, to_size = 0;
 	char *label = NULL;
-
 	// try to open file
 	if (! (fd = fopen(file, "r"))){
 		errno = 0;
 		return 0;
 	}
-
-	// parse it
 	for (;;){
 		if ((read = getdelim(&label, &user_size, ':', fd)) == -1) break;
 		label[read-1] = 0;
@@ -138,8 +135,12 @@ void brt_setup_user_ns(){
 
 	int setup_report = 0;
 	int sig;
-	pid_t master_child, uid_child, gid_child;
-	siginfo_t uid_child_sinfo, gid_child_sinfo, master_child_sinfo;
+	pid_t master_child,
+	      uid_child,
+	      gid_child;
+	siginfo_t uid_child_sinfo,
+	          gid_child_sinfo,
+		  master_child_sinfo;
 
 	uid_t uid;
 	gid_t gid;
