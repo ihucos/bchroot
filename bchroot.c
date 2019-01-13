@@ -17,7 +17,7 @@
 #include <sys/wait.h>
 
 
-#define PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+#define PRESET_PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 #define RBIND(src) {\
 if (-1 == mount(src, "." src, "none", MS_MGC_VAL|MS_BIND|MS_REC, NULL)) \
@@ -84,60 +84,6 @@ void brt_whitelist_env(char *env_name){
                                 environ[env_counter++] = environ[i];
                 }
         }
-}
-
-void brt_chroot(const char* attempt_chdir_to) {
-
-        char *token, *str;
-
-        //
-        // mount stuff
-        //
-        unshare(CLONE_NEWNS
-               ) != -1 || brt_fatal("could not unshare");
-
-        if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
-            // ignore errno as it happens inside a chroot
-            if (errno != EINVAL){
-                brt_fatal("could not change propagation of /");
-            } else {
-                errno = 0;
-            }
-
-        RBIND("/dev");
-        RBIND("/home");
-        RBIND("/proc");
-        RBIND("/root");
-        RBIND("/sys");
-        RBIND("/tmp");
-        RBIND("/etc/resolv.conf"); // FIXME: check what happens if it's a symlink
-
-        chroot("."
-              ) != -1 || brt_fatal("could not chroot to %s", "XXXXXXX"); // FIXME: fill XXXXx
-
-        if (-1 == chdir(attempt_chdir_to)){
-                if (-1 == chdir("/"))
-                        brt_fatal("chdir(\"/\")");
-        }
-
-        if (str = getenv("BCHROOT_EXPORT")) {
-                str = strdup(str);
-                token = strtok(str, ":");
-                while(token){
-                   brt_whitelist_env(token);
-                   token = strtok(NULL, ":");
-                }
-                free(str);
-        }
-
-        // set path to constant
-	putenv("PATH=" PATH);
-
-        brt_whitelist_env("TERM");
-        brt_whitelist_env("DISPLAY");
-        brt_whitelist_env("HOME");
-        brt_whitelist_env("PATH");
-        brt_whitelist_env(NULL);
 }
 
 int brt_parse_subid(const char *file, const char *query1, const char *query2, char **from, char **to){
@@ -280,8 +226,8 @@ void brt_setup_user_ns(){
         }
         if (master_child_sinfo.si_status & SETUP_NO_GID){
                 if (!brt_printf_to_file("/proc/self/setgroups", "deny")){
-                        /* ignore error if file does not exist, as this happens
-                         * in older kernels*/
+			/* ignore file does not exist, as this happens in older
+			 * kernels*/
                         if (errno != ENOENT)
                                 brt_fatal("write /proc/self/setgroups");
                 };
@@ -296,32 +242,70 @@ void brt_setup_user_ns(){
 
 
 int main(int argc, char* argv[]) {
-        char *rootfs;
-        char *progpath;
-        char *origpwd;
+        char *token,
+	     *str,
+             *progpath = realpath("/proc/self/exe", NULL),
+             *origpwd = get_current_dir_name(),
+	     *rootfs = dirname(progpath);
 
-        origpwd = get_current_dir_name();
+        if (!progpath) brt_fatal("realpath");
+	if (!origpwd)  brt_fatal("get_current_dir_name");
 
-        (progpath = realpath("/proc/self/exe", NULL)
-                          ) != NULL || brt_fatal("realpath(\"/proc/self/exe\")");
-        rootfs = dirname(progpath);
         chdir(rootfs
-             ) != -1 || brt_fatal("cd %s", get_current_dir_name());
-
+             ) != -1 || brt_fatal("cd %s", rootfs);
         chdir("./rootfs"
-             ) != -1 || brt_fatal("cd %s/rootfs", get_current_dir_name());
+             ) != -1 || brt_fatal("cd %s/rootfs", rootfs);
 
-
+	/* give us "fake root" */
         brt_setup_user_ns();
-	brt_chroot(origpwd);
 
-        /* free some */
-        free(progpath);
-        progpath = NULL;
-        rootfs = NULL;
-        free(origpwd);
-        origpwd = NULL;
+        unshare(CLONE_NEWNS
+               ) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
 
+	/* mount stuff */
+        if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
+            // ignore errno as it happens inside a chroot
+            if (errno != EINVAL){
+                brt_fatal("could not change propagation of /");
+            } else {
+                errno = 0;
+            }
+        RBIND("/dev");
+        RBIND("/home");
+        RBIND("/proc");
+        RBIND("/root");
+        RBIND("/sys");
+        RBIND("/tmp");
+        RBIND("/etc/resolv.conf"); // FIXME: check what happens if it's a symlink
+
+        chroot("."
+              ) != -1 || brt_fatal("could not chroot to %s/rootfs",
+	                           get_current_dir_name());
+
+	/* chdir back or fallback to / */
+        if (-1 == chdir(origpwd)){
+                if (-1 == chdir("/"))
+                        brt_fatal("chdir(\"/\")");
+        }
+
+	/* setup environment fo exec */
+        if (str = getenv("BCHROOT_EXPORT")) {
+                str = strdup(str);
+                token = strtok(str, ":");
+                while(token){
+                   brt_whitelist_env(token);
+                   token = strtok(NULL, ":");
+                }
+                free(str);
+        }
+	putenv("PATH=" PRESET_PATH);
+        brt_whitelist_env("TERM");
+        brt_whitelist_env("DISPLAY");
+        brt_whitelist_env("HOME");
+        brt_whitelist_env("PATH");
+        brt_whitelist_env(NULL);
+
+	/* exec away */
         argv[0] = program_invocation_short_name;
         execvp(argv[0], argv
               ) != -1 || brt_fatal("could not exec %s in %s", argv[0], rootfs);
