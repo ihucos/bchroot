@@ -243,13 +243,13 @@ void brt_setup_user_ns(){
 
 
 int main(int argc, char* argv[]) {
-	char i;
-	char *token,
+	char i,
+	     *token,
 	     *str,
 	     *progpath = realpath("/proc/self/exe", NULL),
 	     *origpwd = get_current_dir_name(),
-	     *rootfs = dirname(strdup(progpath)); // FIXME: check for no memory error
-	     char *mounts[] = {
+	     *rootfs = dirname(strdup(progpath)), // FIXME: check for no memory error
+	     *mounts[] = {
 	             "./dev",
 		     "./home",
 		     "./proc",
