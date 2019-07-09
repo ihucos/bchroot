@@ -298,7 +298,8 @@ void brt_whitelist_envs_from_env(const char *export_env){
 	}
 }
 
-void brt_setup_mount_propagation(){
+void brt_setup_mount_ns(){
+	unshare(CLONE_NEWNS) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
 	if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
 		if (errno != EINVAL){
 			brt_fatal("could not change propagation of /");
@@ -306,6 +307,7 @@ void brt_setup_mount_propagation(){
 			errno = 0;
 		}
 }
+
 
 
 void brt_bind_mount(const char* src, const char* dst){

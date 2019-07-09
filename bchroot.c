@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
 	       ) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
 
 	/* mount stuff */
-	brt_setup_mount_propagation();
+	brt_setup_mount_ns();
 	for(i = 0; i < sizeof(mounts) / sizeof(char*); i++){
                 brt_bind_mount(mounts[i]+1, mounts[i]);
 	}
