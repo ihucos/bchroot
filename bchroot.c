@@ -11,16 +11,7 @@ int main(int argc, char* argv[]) {
 	     *str,
 	     *progpath = realpath("/proc/self/exe", NULL),
 	     *origpwd = get_current_dir_name(),
-	     *rootfs = dirname(strdup(progpath)), // FIXME: check for no memory error
-	     *mounts[] = {
-	             "./dev",
-		     "./home",
-		     "./proc",
-		     "./root",
-		     "./sys",
-		     "./tmp",
-		     "./etc/resolv.conf"
-		};
+	     *rootfs = dirname(strdup(progpath)); // FIXME: check for no memory error
 
 	if (!progpath) brt_fatal("realpath");
 	if (!origpwd)  brt_fatal("get_current_dir_name");
@@ -33,14 +24,15 @@ int main(int argc, char* argv[]) {
 	/* give us "fake root" */
 	if (getuid()) brt_setup_user_ns();
 
-	unshare(CLONE_NEWNS
-	       ) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
-
-	/* mount stuff */
 	brt_setup_mount_ns();
-	for(i = 0; i < sizeof(mounts) / sizeof(char*); i++){
-                brt_bind_mount(mounts[i]+1, mounts[i]);
-	}
+
+        brt_bind_mount("/dev", "./dev");
+        brt_bind_mount("/home", "./home");
+        brt_bind_mount("/proc", "./proc");
+        brt_bind_mount("/root", "./root");
+        brt_bind_mount("/sys", "./sys");
+        brt_bind_mount("/tmp", "./tmp");
+        brt_bind_mount("/etc/resolv.conf", "./etc/resolv.conf");
 
 	chroot("."
 	      ) != -1 || brt_fatal("could not chroot to %s/rootfs",

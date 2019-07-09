@@ -309,7 +309,6 @@ void brt_setup_mount_ns(){
 }
 
 
-
 void brt_bind_mount(const char* src, const char* dst){
 	if (0 < mount(src, dst, "none",
 	                MS_MGC_VAL|MS_BIND|MS_REC, NULL)){
