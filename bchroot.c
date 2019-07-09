@@ -37,20 +37,9 @@ int main(int argc, char* argv[]) {
 	       ) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
 
 	/* mount stuff */
-	if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
-		if (errno != EINVAL){
-			brt_fatal("could not change propagation of /");
-		} else {
-			errno = 0;
-		}
+	brt_setup_mount_propagation();
 	for(i = 0; i < sizeof(mounts) / sizeof(char*); i++){
-		if (0 < mount(mounts[i]+1, mounts[i], "none",
-		                MS_MGC_VAL|MS_BIND|MS_REC, NULL)){
-			if (errno != ENOENT){
-				brt_fatal("rbind %s to %s%s",
-				          mounts[i]+1, origpwd, mounts[i]+1);
-			}
-		}
+                brt_bind_mount(mounts[i]+1, mounts[i]);
 	}
 
 	chroot("."
@@ -63,22 +52,13 @@ int main(int argc, char* argv[]) {
 			brt_fatal("chdir(\"/\")");
 	}
 
-	/* setup environment fo exec */
-	if (str = getenv("BCHROOT_EXPORT")) {
-		str = strdup(str);
-		token = strtok(str, ":");
-		while(token){
-			brt_whitelist_env(token);
-			token = strtok(NULL, ":");
-		}
-		free(str);
-	}
 	putenv("PATH=" PRESET_PATH);
 	brt_whitelist_env("TERM");
 	brt_whitelist_env("DISPLAY");
 	brt_whitelist_env("HOME");
 	brt_whitelist_env("PATH");
 	brt_whitelist_env(NULL);
+	brt_whitelist_envs_from_env("BCHROOT_EXPORT");
 
 	/* exec away */
 	argv[0] = program_invocation_short_name;

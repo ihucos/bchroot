@@ -18,9 +18,9 @@
 
 
 enum {
-	SETUP_NO_UID = 0x01,
-	SETUP_NO_GID = 0x02,
-	SETUP_ERROR = 0x04,
+        SETUP_NO_UID = 0x01,
+        SETUP_NO_GID = 0x02,
+        SETUP_ERROR = 0x04,
 };
 
 
@@ -281,4 +281,38 @@ char* brt_check_output(char* argv[]){
                 if (!output[0]) exit(1);
                 return output;
     }
+}
+
+
+void brt_whitelist_envs_from_env(const char *export_env){
+        char *str;
+        char *token;
+	if (str = getenv(export_env)) {
+		str = strdup(str);
+		token = strtok(str, ":");
+		while(token){
+			brt_whitelist_env(token);
+			token = strtok(NULL, ":");
+		}
+		free(str);
+	}
+}
+
+void brt_setup_mount_propagation(){
+	if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
+		if (errno != EINVAL){
+			brt_fatal("could not change propagation of /");
+		} else {
+			errno = 0;
+		}
+}
+
+
+void brt_bind_mount(const char* src, const char* dst){
+	if (0 < mount(src, dst, "none",
+	                MS_MGC_VAL|MS_BIND|MS_REC, NULL)){
+		if (errno != ENOENT){
+			brt_fatal("rbind %s to %s", src, dst);
+		}
+	}
 }
