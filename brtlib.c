@@ -39,11 +39,27 @@ int brt_fatal(char *format, ...){
         va_list args;
         va_start(args, format);
         va_end(args);
-        fprintf(stderr, "bchroot: ");
+        fprintf(stderr, "brtlib error: ");
         vfprintf(stderr, format, args);
         if (errno != 0) fprintf(stderr, ": %s", strerror(errno));
         fprintf(stderr, "\n");
         exit(1);
+}
+
+char* brt_path(const char *relpath){
+        char *addedpath, *normalizedpath;
+        static char *herepath = NULL;
+        if (!herepath){
+                if (!(herepath = realpath("/proc/self/exe", NULL)))
+                        brt_fatal("realpath");
+                herepath = dirname(herepath);
+        }
+        if (asprintf(&addedpath, "%s/%s", herepath, relpath) == -1)
+                brt_fatal("asprintf");
+        if (!(normalizedpath = realpath(addedpath, NULL)))
+                brt_fatal("realpath %s", addedpath);
+        free(addedpath);
+        return normalizedpath;
 }
 
 
@@ -82,6 +98,7 @@ int brt_parse_subid(
                 if ((read = getdelim(from, &from_size, ':', fd)) == -1) break;
                 (*from)[read-1] = 0;
                 if ((read = getdelim(to, &to_size, '\n', fd)) == -1) break;
+                if (feof(fd)){read++; realloc(*to, read);}
                 (*to)[read-1] = 0;
 
                 if (               (query1 && 0 == strcmp(query1, label))
@@ -210,7 +227,8 @@ void brt_setup_user_ns(){
 	}
 
 	unshare(CLONE_NEWUSER
-	       ) != -1 || brt_fatal("could not unshare user namespace");
+	       ) != -1 || brt_fatal("could not unshare user namespace "
+                                   "(maybe try `sysctl -w kernel.unprivileged_userns_clone=1`)");
 
 	kill(master_child, SIGUSR1);
 	waitid(P_PID, master_child, &master_child_sinfo, WEXITED
@@ -236,4 +254,31 @@ void brt_setup_user_ns(){
 	free(uid_str);
 	free(gid_str);
 	free(pid_str);
+}
+
+char* brt_check_output(char* argv[]){
+  int link[2];
+  char static output[4096];
+
+  if (pipe(link) == -1) brt_fatal("pipe");
+
+  switch(fork()){
+        case -1:
+                 brt_fatal("fork");
+
+        case 0:
+                if (dup2(link[1], STDOUT_FILENO) == -1) brt_fatal("dup2");
+                if (close(link[0]) ==               -1) brt_fatal("close");
+                if (close(link[1]) ==               -1) brt_fatal("close");
+                execvp(argv[0], argv);
+                brt_fatal("exec");
+
+        default:
+                if (close(link[1]) == -1) brt_fatal("close");
+                if(read(link[0], output, sizeof(output)) == -1)
+                    brt_fatal("read");
+                output[strcspn(output, "\n")] = 0;
+                if (!output[0]) exit(1);
+                return output;
+    }
 }

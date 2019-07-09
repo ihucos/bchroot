@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include "brtlib.c"
+#include "brtlib.h"
 
 
 #define PRESET_PATH "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
