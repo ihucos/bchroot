@@ -16,6 +16,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
+#include "brtlib.h"
+
 
 enum {
         SETUP_NO_UID = 0x01,
