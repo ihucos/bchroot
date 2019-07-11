@@ -11,3 +11,6 @@ zudo: bin/zudo.c lib/brtlib.c
 
 clean:
 	rm dist/zudo dist/bchroot
+
+swig:
+	swig lib/brtlib.i
