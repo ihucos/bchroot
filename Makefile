@@ -3,11 +3,11 @@ CFLAGS=-static
 
 all: bchroot zudo
 
-bchroot: bchroot.c brtlib.c
-	$(CC) $(CFLAGS) -o bchroot bchroot.c brtlib.c
+bchroot: bin/bchroot.c lib/brtlib.c
+	$(CC) $(CFLAGS) -o dist/bchroot lib/bchroot.c lib/brtlib.c
 
-zudo: zudo.c brtlib.c
-	$(CC) $(CFLAGS) -o zudo zudo.c brtlib.c
+zudo: bin/zudo.c lib/brtlib.c
+	$(CC) $(CFLAGS) -o dist/zudo lib/zudo.c lib/brtlib.c
 
 clean:
-	rm zudo bchroot
+	rm dist/zudo dist/bchroot
