@@ -8,7 +8,7 @@ from distutils.core import setup, Extension
 
 
 brtlib_module = Extension('_brtlib',
-                           sources=['brtlib_wrap.c', 'brtlib.c'],
+                           sources=['lib/brtlib_wrap.c', 'lib/brtlib.c'],
                            )
 
 setup (name = 'brtlib',
