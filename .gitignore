@@ -1,3 +1,10 @@
+dist
+build
+__pycache__
+MANIFEST
+
+*.swp
+
 # Prerequisites
 *.d
 
