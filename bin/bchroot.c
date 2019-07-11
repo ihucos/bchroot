@@ -6,7 +6,7 @@
 
 
 int main(int argc, char* argv[]) {
-	char i,
+	char 
 	     *token,
 	     *str,
 	     *progpath = realpath("/proc/self/exe", NULL),
