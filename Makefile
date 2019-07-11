@@ -13,4 +13,4 @@ clean:
 	rm dist/zudo dist/bchroot
 
 swig:
-	swig lib/brtlib.i
+	swig -python lib/brtlib.i
