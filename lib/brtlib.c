@@ -319,3 +319,11 @@ void brt_bind_mount(const char* src, const char* dst){
 		}
 	}
 }
+
+
+void brt_chdir(const char* newdir){
+	if (-1 == chdir(newdir)){
+		if (-1 == chdir("/"))
+			brt_fatal("chdir(\"/\")");
+	}
+}

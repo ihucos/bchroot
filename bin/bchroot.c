@@ -38,11 +38,7 @@ int main(int argc, char* argv[]) {
 	      ) != -1 || brt_fatal("could not chroot to %s/rootfs",
 	                           get_current_dir_name());
 
-	/* chdir back or fallback to / */
-	if (-1 == chdir(origpwd)){
-		if (-1 == chdir("/"))
-			brt_fatal("chdir(\"/\")");
-	}
+	brt_chdir(origpwd);
 
 	putenv("PATH=" PRESET_PATH);
 	brt_whitelist_env("TERM");

@@ -30,3 +30,5 @@ void brt_whitelist_envs_from_env(const char *export_env);
 void brt_bind_mount(const char* src, const char* dst);
 
 void brt_setup_mount_ns();
+
+void brt_chdir(const char* newdir);
