@@ -6,7 +6,19 @@
 
 #include "brtlib.h"
 
-#define OPT "u:g:n:m:e:E:"
+#define OPT "hu:g:n:m:e:E:"
+
+void usage(){
+    puts("  USAGE: bchroot <options> rootfs cmd");
+    puts("VERSION: 0.1 alpha");
+    puts("OPTIONS:");
+    puts("-u uid: setuid");
+    puts("-g gid: setgid");
+    puts("-m dir: mount to host");
+    puts("-e var: import this variable");
+    puts("-E var: import all variables in this variable");
+    puts("-n: don't unshare user namepsace");
+}
 
 int main (int argc, char **argv) {
   int c;
@@ -22,6 +34,9 @@ int main (int argc, char **argv) {
 
   while ((c = getopt (argc, argv, OPT)) != -1)
     switch (c) {
+      case 'h':
+        usage();
+        return 1;
       case 'u':
         uid = (uid_t) strtol(optarg, NULL, 10);
         break;
