@@ -9,28 +9,27 @@
 #define OPT "hu:g:n:m:e:E:"
 
 void usage(){
-    puts("  USAGE: bchroot <options> rootfs cmd");
-    puts("VERSION: 0.1 alpha");
+    puts("USAGE: bchroot <options> rootfs cmd");
+    puts("HINT: most options fail silently, debug with strace");
     puts("OPTIONS:");
     puts("-u uid: setuid");
     puts("-g gid: setgid");
-    puts("-m dir: mount to host");
+    puts("-m dir: mount from host");
     puts("-e var: import this variable");
     puts("-E var: import all variables in this variable");
     puts("-n: don't unshare user namepsace");
 }
 
 int main (int argc, char **argv) {
-  int c;
-  int has_mount = 0;
-  int has_env = 0;
-  int no_user_ns = 0;
   char **exec_argv;
   char *bindto;
   char *rootfs;
-  uid_t uid = 0;
+  int c;
+  int has_env = 0;
+  int has_mount = 0;
+  int no_user_ns = 0;
   gid_t gid = 0;
-
+  uid_t uid = 0;
 
   while ((c = getopt (argc, argv, OPT)) != -1)
     switch (c) {
@@ -59,12 +58,12 @@ int main (int argc, char **argv) {
         break;
     }
   if (! (rootfs = argv[optind])){
-      fprintf(stderr, "bchroot: missing arg: rootfs\n");
+      usage();
       return 1;
   }
   exec_argv = argv + optind + 1;
   if (!*exec_argv){
-      fprintf(stderr, "bchroot: missing arg: cmd\n");
+      usage();
       return 1;
   }
   optind = 1;
