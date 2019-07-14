@@ -6,7 +6,7 @@
 
 #include "brtlib.h"
 
-#define OPT "n:m:e:E:"
+#define OPT "u:g:n:m:e:E:"
 
 int
 main (int argc, char **argv)
@@ -18,10 +18,16 @@ main (int argc, char **argv)
   char **exec_argv;
   char *bindto;
   char *rootfs;
+  uid_t uid = 0;
+  uid_t gid = 0;
 
 
   while ((c = getopt (argc, argv, OPT)) != -1)
     switch (c) {
+      case 'u':
+        uid = (uid_t)optarg; XXXXXXXXXXX
+      case 'g':
+        gid = optarg;
       case 'n':
         no_user_ns = 1;
       case 'm':
@@ -81,6 +87,7 @@ main (int argc, char **argv)
   if (has_env) brt_whitelist_env(NULL);
 
   brt_chroot(rootfs);
+
   execvp(exec_argv[0], exec_argv);
   fprintf(stderr, "execvp %s\n", exec_argv[0]);
   perror("");
