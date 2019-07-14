@@ -327,3 +327,12 @@ void brt_chdir(const char* newdir){
 			brt_fatal("chdir(\"/\")");
 	}
 }
+
+
+void brt_chroot(const char* rootfs){
+	char *origpwd = get_current_dir_name();
+	if (!origpwd) brt_fatal("get_current_dir_name");
+	chroot(rootfs
+	      ) != -1 || brt_fatal("could not chroot to %s", rootfs);
+        brt_chdir(origpwd);
+}

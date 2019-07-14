@@ -8,18 +8,14 @@
 int main(int argc, char* argv[]) {
 	char 
 	     *token,
+	     *rootfs,
 	     *str,
-	     *progpath = realpath("/proc/self/exe", NULL),
-	     *origpwd = get_current_dir_name(),
-	     *rootfs = dirname(strdup(progpath)); // FIXME: check for no memory error
+	     *origpwd = get_current_dir_name();
 
-	if (!progpath) brt_fatal("realpath");
-	if (!origpwd)  brt_fatal("get_current_dir_name");
 
+        rootfs = brt_path("../rootfs");
 	chdir(rootfs
 	     ) != -1 || brt_fatal("cd %s", rootfs);
-	chdir("./rootfs"
-	     ) != -1 || brt_fatal("cd %s/rootfs", rootfs);
 
 	/* give us "fake root" */
 	if (getuid()) brt_setup_user_ns();

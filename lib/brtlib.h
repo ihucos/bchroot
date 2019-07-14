@@ -32,3 +32,5 @@ void brt_bind_mount(const char* src, const char* dst);
 void brt_setup_mount_ns();
 
 void brt_chdir(const char* newdir);
+
+void brt_chroot(const char* rootfs);
