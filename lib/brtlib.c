@@ -285,7 +285,6 @@ char* brt_check_output(char* argv[]){
     }
 }
 
-
 void brt_whitelist_envs_from_env(const char *export_env){
         char *str;
         char *token;
