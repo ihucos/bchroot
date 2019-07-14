@@ -19,27 +19,31 @@ main (int argc, char **argv)
   char *bindto;
   char *rootfs;
   uid_t uid = 0;
-  uid_t gid = 0;
+  gid_t gid = 0;
 
 
   while ((c = getopt (argc, argv, OPT)) != -1)
     switch (c) {
       case 'u':
-        uid = (uid_t)optarg; XXXXXXXXXXX
+        uid = (uid_t) strtol(optarg, NULL, 10);
+        break;
       case 'g':
-        gid = optarg;
+        gid = (gid_t) strtol(optarg, NULL, 10);
+        break;
       case 'n':
         no_user_ns = 1;
+        break;
       case 'm':
         has_mount = 1;
+        break;
       case 'e':
         has_env = 1;
+        break;
       case 'E':
         has_env = 1;
+        break;
       case '?':
         break;
-      default:
-        abort ();
     }
   if (! (rootfs = argv[optind])){
       fprintf(stderr, "bchroot: missing arg: rootfs\n");
@@ -52,11 +56,11 @@ main (int argc, char **argv)
   }
   optind = 1;
 
-  if (has_mount) {
-    brt_setup_mount_ns();
-  }
   if (!no_user_ns){
       if (getuid()) brt_setup_user_ns();
+  }
+  if (has_mount) {
+    brt_setup_mount_ns();
   }
 
   while ((c = getopt (argc, argv, OPT)) != -1)
@@ -64,29 +68,31 @@ main (int argc, char **argv)
       {
       case 'e':
           brt_whitelist_env(optarg);
+          break;
       case 'E':
           brt_whitelist_envs_from_env(optarg);
+          break;
       case 'm':
         if (-1 == asprintf(&bindto, "%s/%s", rootfs, optarg)){
             perror("asprintf");
             return 1;
         }
         brt_bind_mount(optarg, bindto);
+        break;
       case '?':
         break;
 
       case ':':
         puts("missing parameter");
         return 1;
-
-      default:
-        abort ();
-
       }
 
   if (has_env) brt_whitelist_env(NULL);
 
   brt_chroot(rootfs);
+
+  if (gid) setgid(gid);
+  if (uid) setuid(uid);
 
   execvp(exec_argv[0], exec_argv);
   fprintf(stderr, "execvp %s\n", exec_argv[0]);
