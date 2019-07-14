@@ -8,9 +8,7 @@
 
 #define OPT "u:g:n:m:e:E:"
 
-int
-main (int argc, char **argv)
-{
+int main (int argc, char **argv) {
   int c;
   int has_mount = 0;
   int has_env = 0;
