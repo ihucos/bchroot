@@ -3363,6 +3363,54 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_brt_chdir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:brt_chdir",&obj0)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_chdir" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = (char *)(buf1);
+  brt_chdir((char const *)arg1);
+  resultobj = SWIG_Py_Void();
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_brt_chroot(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:brt_chroot",&obj0)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_chroot" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = (char *)(buf1);
+  brt_chroot((char const *)arg1);
+  resultobj = SWIG_Py_Void();
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  return NULL;
+}
+
+
 static PyMethodDef SwigMethods[] = {
 	 { (char *)"SWIG_PyInstanceMethod_New", (PyCFunction)SWIG_PyInstanceMethod_New, METH_O, NULL},
 	 { (char *)"brt_path", _wrap_brt_path, METH_VARARGS, NULL},
@@ -3372,6 +3420,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"brt_whitelist_envs_from_env", _wrap_brt_whitelist_envs_from_env, METH_VARARGS, NULL},
 	 { (char *)"brt_bind_mount", _wrap_brt_bind_mount, METH_VARARGS, NULL},
 	 { (char *)"brt_setup_mount_ns", _wrap_brt_setup_mount_ns, METH_VARARGS, NULL},
+	 { (char *)"brt_chdir", _wrap_brt_chdir, METH_VARARGS, NULL},
+	 { (char *)"brt_chroot", _wrap_brt_chroot, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
 };
 

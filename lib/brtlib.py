@@ -123,6 +123,14 @@ brt_bind_mount = _brtlib.brt_bind_mount
 def brt_setup_mount_ns():
     return _brtlib.brt_setup_mount_ns()
 brt_setup_mount_ns = _brtlib.brt_setup_mount_ns
+
+def brt_chdir(newdir):
+    return _brtlib.brt_chdir(newdir)
+brt_chdir = _brtlib.brt_chdir
+
+def brt_chroot(rootfs):
+    return _brtlib.brt_chroot(rootfs)
+brt_chroot = _brtlib.brt_chroot
 # This file is compatible with both classic and new-style classes.
 
 

@@ -18,6 +18,8 @@
 
 #include "brtlib.h"
 
+#pragma GCC diagnostic ignored "-Wunused-value"
+
 
 enum {
         SETUP_NO_UID = 0x01,
@@ -100,7 +102,7 @@ int brt_parse_subid(
                 if ((read = getdelim(from, &from_size, ':', fd)) == -1) break;
                 (*from)[read-1] = 0;
                 if ((read = getdelim(to, &to_size, '\n', fd)) == -1) break;
-                if (feof(fd)){read++; realloc(*to, read);}
+                if (feof(fd)){read++; realloc(*to, read) || brt_fatal("realloc");}
                 (*to)[read-1] = 0;
 
                 if (               (query1 && 0 == strcmp(query1, label))
@@ -144,6 +146,7 @@ int brt_fork_exec_newmap(fork_exec_newmap_t args){
                "1", from, to, NULL);
         if (errno == ENOENT) exit(127);
         brt_fatal("execlp");
+        return 0; // just to silence warnings
 }
 
 
@@ -288,7 +291,7 @@ char* brt_check_output(char* argv[]){
 void brt_whitelist_envs_from_env(const char *export_env){
         char *str;
         char *token;
-	if (str = getenv(export_env)) {
+	if ((str = getenv(export_env))) {
 		str = strdup(str);
 		token = strtok(str, ":");
 		while(token){
@@ -301,12 +304,13 @@ void brt_whitelist_envs_from_env(const char *export_env){
 
 void brt_setup_mount_ns(){
 	unshare(CLONE_NEWNS) != -1 || brt_fatal("unshare(CLONE_NEWNS)");
-	if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL))
+	if (-1 == mount("none", "/", NULL, MS_REC|MS_PRIVATE, NULL)){
 		if (errno != EINVAL){
 			brt_fatal("could not change propagation of /");
 		} else {
 			errno = 0;
 		}
+        } 
 }
 
 
