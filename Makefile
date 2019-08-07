@@ -10,7 +10,7 @@ zudo: bin/zudo.c lib/brtlib.c
 	$(CC) $(CFLAGS) -o dist/zudo bin/zudo.c lib/brtlib.c
 
 clean:
-	rm dist/zudo dist/bchroot
+	rm -rf dist/zudo dist/bchroot build
 
 swig:
 	swig -python lib/brtlib.i

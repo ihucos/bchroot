@@ -3190,7 +3190,7 @@ SWIGINTERNINLINE PyObject*
 #ifdef __cplusplus
 extern "C" {
 #endif
-SWIGINTERN PyObject *_wrap_brt_path(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_path(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   int res1 ;
@@ -3199,10 +3199,10 @@ SWIGINTERN PyObject *_wrap_brt_path(PyObject *SWIGUNUSEDPARM(self), PyObject *ar
   PyObject * obj0 = 0 ;
   char *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_path",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:path",&obj0)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_path" "', argument " "1"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "path" "', argument " "1"" of type '" "char const *""'");
   }
   arg1 = (char *)(buf1);
   result = (char *)brt_path((char const *)arg1);
@@ -3215,34 +3215,10 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_whitelist_env(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  char *arg1 = (char *) 0 ;
-  int res1 ;
-  char *buf1 = 0 ;
-  int alloc1 = 0 ;
-  PyObject * obj0 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_whitelist_env",&obj0)) SWIG_fail;
-  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_whitelist_env" "', argument " "1"" of type '" "char *""'");
-  }
-  arg1 = (char *)(buf1);
-  brt_whitelist_env(arg1);
-  resultobj = SWIG_Py_Void();
-  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
-  return resultobj;
-fail:
-  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_brt_setup_user_ns(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_setup_user_ns(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   
-  if (!PyArg_ParseTuple(args,(char *)":brt_setup_user_ns")) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)":setup_user_ns")) SWIG_fail;
   brt_setup_user_ns();
   resultobj = SWIG_Py_Void();
   return resultobj;
@@ -3251,7 +3227,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_fatal__varargs__(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *varargs) {
+SWIGINTERN PyObject *_wrap_fatal__varargs__(PyObject *SWIGUNUSEDPARM(self), PyObject *args, PyObject *varargs) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   void *arg2 = 0 ;
@@ -3261,10 +3237,10 @@ SWIGINTERN PyObject *_wrap_brt_fatal__varargs__(PyObject *SWIGUNUSEDPARM(self), 
   PyObject * obj0 = 0 ;
   int result;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_fatal",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:fatal",&obj0)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_fatal" "', argument " "1"" of type '" "char *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "fatal" "', argument " "1"" of type '" "char *""'");
   }
   arg1 = (char *)(buf1);
   result = (int)brt_fatal(arg1,arg2);
@@ -3277,21 +3253,21 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_fatal(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_fatal(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj;
   PyObject *varargs;
   PyObject *newargs;
   
   newargs = PyTuple_GetSlice(args,0,1);
   varargs = PyTuple_GetSlice(args,1,PyTuple_Size(args));
-  resultobj = _wrap_brt_fatal__varargs__(NULL,newargs,varargs);
+  resultobj = _wrap_fatal__varargs__(NULL,newargs,varargs);
   Py_XDECREF(newargs);
   Py_XDECREF(varargs);
   return resultobj;
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_whitelist_envs_from_env(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_whitelist_envs_from_env(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   int res1 ;
@@ -3299,10 +3275,10 @@ SWIGINTERN PyObject *_wrap_brt_whitelist_envs_from_env(PyObject *SWIGUNUSEDPARM(
   int alloc1 = 0 ;
   PyObject * obj0 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_whitelist_envs_from_env",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:whitelist_envs_from_env",&obj0)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_whitelist_envs_from_env" "', argument " "1"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "whitelist_envs_from_env" "', argument " "1"" of type '" "char const *""'");
   }
   arg1 = (char *)(buf1);
   brt_whitelist_envs_from_env((char const *)arg1);
@@ -3315,7 +3291,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_bind_mount(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_bind_mount(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   char *arg2 = (char *) 0 ;
@@ -3328,15 +3304,15 @@ SWIGINTERN PyObject *_wrap_brt_bind_mount(PyObject *SWIGUNUSEDPARM(self), PyObje
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OO:brt_bind_mount",&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:bind_mount",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_bind_mount" "', argument " "1"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "bind_mount" "', argument " "1"" of type '" "char const *""'");
   }
   arg1 = (char *)(buf1);
   res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "brt_bind_mount" "', argument " "2"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "bind_mount" "', argument " "2"" of type '" "char const *""'");
   }
   arg2 = (char *)(buf2);
   brt_bind_mount((char const *)arg1,(char const *)arg2);
@@ -3351,10 +3327,10 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_setup_mount_ns(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_setup_mount_ns(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   
-  if (!PyArg_ParseTuple(args,(char *)":brt_setup_mount_ns")) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)":setup_mount_ns")) SWIG_fail;
   brt_setup_mount_ns();
   resultobj = SWIG_Py_Void();
   return resultobj;
@@ -3363,7 +3339,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_chdir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_chdir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   int res1 ;
@@ -3371,10 +3347,10 @@ SWIGINTERN PyObject *_wrap_brt_chdir(PyObject *SWIGUNUSEDPARM(self), PyObject *a
   int alloc1 = 0 ;
   PyObject * obj0 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_chdir",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:chdir",&obj0)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_chdir" "', argument " "1"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "chdir" "', argument " "1"" of type '" "char const *""'");
   }
   arg1 = (char *)(buf1);
   brt_chdir((char const *)arg1);
@@ -3387,7 +3363,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_brt_chroot(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_chroot(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   int res1 ;
@@ -3395,10 +3371,10 @@ SWIGINTERN PyObject *_wrap_brt_chroot(PyObject *SWIGUNUSEDPARM(self), PyObject *
   int alloc1 = 0 ;
   PyObject * obj0 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:brt_chroot",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:chroot",&obj0)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "brt_chroot" "', argument " "1"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "chroot" "', argument " "1"" of type '" "char const *""'");
   }
   arg1 = (char *)(buf1);
   brt_chroot((char const *)arg1);
@@ -3413,15 +3389,14 @@ fail:
 
 static PyMethodDef SwigMethods[] = {
 	 { (char *)"SWIG_PyInstanceMethod_New", (PyCFunction)SWIG_PyInstanceMethod_New, METH_O, NULL},
-	 { (char *)"brt_path", _wrap_brt_path, METH_VARARGS, NULL},
-	 { (char *)"brt_whitelist_env", _wrap_brt_whitelist_env, METH_VARARGS, NULL},
-	 { (char *)"brt_setup_user_ns", _wrap_brt_setup_user_ns, METH_VARARGS, NULL},
-	 { (char *)"brt_fatal", _wrap_brt_fatal, METH_VARARGS, NULL},
-	 { (char *)"brt_whitelist_envs_from_env", _wrap_brt_whitelist_envs_from_env, METH_VARARGS, NULL},
-	 { (char *)"brt_bind_mount", _wrap_brt_bind_mount, METH_VARARGS, NULL},
-	 { (char *)"brt_setup_mount_ns", _wrap_brt_setup_mount_ns, METH_VARARGS, NULL},
-	 { (char *)"brt_chdir", _wrap_brt_chdir, METH_VARARGS, NULL},
-	 { (char *)"brt_chroot", _wrap_brt_chroot, METH_VARARGS, NULL},
+	 { (char *)"path", _wrap_path, METH_VARARGS, NULL},
+	 { (char *)"setup_user_ns", _wrap_setup_user_ns, METH_VARARGS, NULL},
+	 { (char *)"fatal", _wrap_fatal, METH_VARARGS, NULL},
+	 { (char *)"whitelist_envs_from_env", _wrap_whitelist_envs_from_env, METH_VARARGS, NULL},
+	 { (char *)"bind_mount", _wrap_bind_mount, METH_VARARGS, NULL},
+	 { (char *)"setup_mount_ns", _wrap_setup_mount_ns, METH_VARARGS, NULL},
+	 { (char *)"chdir", _wrap_chdir, METH_VARARGS, NULL},
+	 { (char *)"chroot", _wrap_chroot, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
 };
 

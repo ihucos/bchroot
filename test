@@ -1,0 +1,25 @@
+#!/usr/bin/env plash-exec
+
+-f alpine
+
+--layer
+apk
+py3-pip
+gcc
+python3-dev
+musl-dev
+
+--layer
+pip3 setuptools
+
+--layer
+--hash-path .
+--run
+--run
+mount -t tmpfs tmpfs build
+python3 setup.py install
+
+--entrypoint python3
+
+--# --entrypoint-script
+--# python3 -c 'import brtlib'

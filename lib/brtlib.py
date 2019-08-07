@@ -96,41 +96,37 @@ except __builtin__.Exception:
     _newclass = 0
 
 
-def brt_path(relpath):
-    return _brtlib.brt_path(relpath)
-brt_path = _brtlib.brt_path
+def path(relpath):
+    return _brtlib.path(relpath)
+path = _brtlib.path
 
-def brt_whitelist_env(env_name):
-    return _brtlib.brt_whitelist_env(env_name)
-brt_whitelist_env = _brtlib.brt_whitelist_env
+def setup_user_ns():
+    return _brtlib.setup_user_ns()
+setup_user_ns = _brtlib.setup_user_ns
 
-def brt_setup_user_ns():
-    return _brtlib.brt_setup_user_ns()
-brt_setup_user_ns = _brtlib.brt_setup_user_ns
+def fatal(format):
+    return _brtlib.fatal(format)
+fatal = _brtlib.fatal
 
-def brt_fatal(format):
-    return _brtlib.brt_fatal(format)
-brt_fatal = _brtlib.brt_fatal
+def whitelist_envs_from_env(export_env):
+    return _brtlib.whitelist_envs_from_env(export_env)
+whitelist_envs_from_env = _brtlib.whitelist_envs_from_env
 
-def brt_whitelist_envs_from_env(export_env):
-    return _brtlib.brt_whitelist_envs_from_env(export_env)
-brt_whitelist_envs_from_env = _brtlib.brt_whitelist_envs_from_env
+def bind_mount(src, dst):
+    return _brtlib.bind_mount(src, dst)
+bind_mount = _brtlib.bind_mount
 
-def brt_bind_mount(src, dst):
-    return _brtlib.brt_bind_mount(src, dst)
-brt_bind_mount = _brtlib.brt_bind_mount
+def setup_mount_ns():
+    return _brtlib.setup_mount_ns()
+setup_mount_ns = _brtlib.setup_mount_ns
 
-def brt_setup_mount_ns():
-    return _brtlib.brt_setup_mount_ns()
-brt_setup_mount_ns = _brtlib.brt_setup_mount_ns
+def chdir(newdir):
+    return _brtlib.chdir(newdir)
+chdir = _brtlib.chdir
 
-def brt_chdir(newdir):
-    return _brtlib.brt_chdir(newdir)
-brt_chdir = _brtlib.brt_chdir
-
-def brt_chroot(rootfs):
-    return _brtlib.brt_chroot(rootfs)
-brt_chroot = _brtlib.brt_chroot
+def chroot(rootfs):
+    return _brtlib.chroot(rootfs)
+chroot = _brtlib.chroot
 # This file is compatible with both classic and new-style classes.
 
 
