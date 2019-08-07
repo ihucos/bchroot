@@ -16,7 +16,7 @@ pip3 setuptools
 --hash-path .
 --run
 --run
-mount -t tmpfs tmpfs build
+mount -t tmpfs tmpfs build || true
 python3 setup.py install
 
 --entrypoint python3
