@@ -14,4 +14,4 @@ the chroot. Furthermore bchroot runs it's binary name inside any folder called
 distributing software inside a rootfs or container.
 
 ## Current status of the software
-Alpha
+Alpha and abandoned
